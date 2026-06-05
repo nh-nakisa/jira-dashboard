@@ -166,6 +166,9 @@ table.issues tr:hover td { background: var(--bg2); }
 /* ── Analytics ── */
 .analytics-head h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
 .analytics-head .sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.section-h-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:26px 0 14px; }
+.section-h-row .section-h { margin:0; }
+.section-control { border:0.5px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); padding:6px 10px; font-size:12px; }
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
 .chart-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
 .chart-card h3 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
@@ -631,7 +634,19 @@ const ALL_FIELDS = [
 const DEFAULT_ENABLED = ALL_FIELDS.map(f => f.id);
 
 // ── State ────────────────────────────────────────────────────────────────────
-let S = { page:'setup', creds:{url:'',email:'',token:''}, enabled:[...DEFAULT_ENABLED], customIds:{}, cache:{}, charts:{}, log:[], customProjects:[], projectSettings:{}, theme:'' };
+let S = {
+  page:'setup',
+  creds:{url:'',email:'',token:''},
+  enabled:[...DEFAULT_ENABLED],
+  customIds:{},
+  cache:{},
+  charts:{},
+  log:[],
+  customProjects:[],
+  projectSettings:{},
+  theme:'',
+  analyticsViews:{ phase:'table', dev:'table', priority:'doughnut', type:'doughnut' }
+};
 
 function isBuiltinProjectKey(key) {
   return PROJECTS.some(p => p.key === key);
@@ -1299,8 +1314,33 @@ function mapFieldId(ourFieldId, jiraFieldId) {
   inspectIssue();
 }
 
+function ensureAnalyticsViews() {
+  const phaseModes = new Set(['table', 'bar', 'bar100', 'grouped', 'doughnut']);
+  const devModes = new Set(['table', 'bar']);
+  const donutModes = new Set(['doughnut', 'pie', 'bar', 'polarArea']);
+  if (!S.analyticsViews) S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut' };
+  if (!phaseModes.has(S.analyticsViews.phase)) S.analyticsViews.phase = 'table';
+  if (!devModes.has(S.analyticsViews.dev)) S.analyticsViews.dev = 'table';
+  if (!donutModes.has(S.analyticsViews.priority)) S.analyticsViews.priority = 'doughnut';
+  if (!donutModes.has(S.analyticsViews.type)) S.analyticsViews.type = 'doughnut';
+}
+
+function setAnalyticsView(section, value) {
+  ensureAnalyticsViews();
+  S.analyticsViews[section] = value;
+  persist();
+  renderAnalytics();
+}
+
+function resetAnalyticsViews() {
+  S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut' };
+  persist();
+  renderAnalytics();
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 function renderAnalytics() {
+  ensureAnalyticsViews();
   Object.values(S.charts).forEach(c=>{try{c.destroy();}catch(e){}});
   S.charts = {};
 
@@ -1330,14 +1370,48 @@ function renderAnalytics() {
     ${PHASES.map(p=>`<div class="stat-card"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
 
   body.innerHTML = `
-    <div class="stat-strip" style="margin-bottom:28px">${summaryCards}</div>
-    <div class="section-h">Phase breakdown</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <div class="stat-strip" style="margin-bottom:0;flex:1">${summaryCards}</div>
+      <button class="btn btn-sm" onclick="resetAnalyticsViews()">Reset graph views</button>
+    </div>
+    <div class="section-h-row">
+      <div class="section-h">Phase breakdown</div>
+      <select class="section-control" onchange="setAnalyticsView('phase',this.value)">
+        <option value="table" ${S.analyticsViews.phase === 'table' ? 'selected' : ''}>Table</option>
+        <option value="bar" ${S.analyticsViews.phase === 'bar' ? 'selected' : ''}>Stacked bar</option>
+        <option value="bar100" ${S.analyticsViews.phase === 'bar100' ? 'selected' : ''}>100% stacked</option>
+        <option value="grouped" ${S.analyticsViews.phase === 'grouped' ? 'selected' : ''}>Grouped bar</option>
+        <option value="doughnut" ${S.analyticsViews.phase === 'doughnut' ? 'selected' : ''}>Overall doughnut</option>
+      </select>
+    </div>
     <div id="ch-pipeline"></div>
-    <div class="section-h">Developer progress</div>
+    <div class="section-h-row">
+      <div class="section-h">Developer progress</div>
+      <select class="section-control" onchange="setAnalyticsView('dev',this.value)">
+        <option value="table" ${S.analyticsViews.dev === 'table' ? 'selected' : ''}>Table</option>
+        <option value="bar" ${S.analyticsViews.dev === 'bar' ? 'selected' : ''}>Bar chart</option>
+      </select>
+    </div>
     <div id="ch-devprogress"></div>
-    <div class="section-h">Priority breakdown</div>
+    <div class="section-h-row">
+      <div class="section-h">Priority breakdown</div>
+      <select class="section-control" onchange="setAnalyticsView('priority',this.value)">
+        <option value="doughnut" ${S.analyticsViews.priority === 'doughnut' ? 'selected' : ''}>Doughnut</option>
+        <option value="pie" ${S.analyticsViews.priority === 'pie' ? 'selected' : ''}>Pie</option>
+        <option value="bar" ${S.analyticsViews.priority === 'bar' ? 'selected' : ''}>Bar</option>
+        <option value="polarArea" ${S.analyticsViews.priority === 'polarArea' ? 'selected' : ''}>Polar area</option>
+      </select>
+    </div>
     <div class="charts-grid" id="ch-priority"></div>
-    <div class="section-h">Issue type breakdown</div>
+    <div class="section-h-row">
+      <div class="section-h">Issue type breakdown</div>
+      <select class="section-control" onchange="setAnalyticsView('type',this.value)">
+        <option value="doughnut" ${S.analyticsViews.type === 'doughnut' ? 'selected' : ''}>Doughnut</option>
+        <option value="pie" ${S.analyticsViews.type === 'pie' ? 'selected' : ''}>Pie</option>
+        <option value="bar" ${S.analyticsViews.type === 'bar' ? 'selected' : ''}>Bar</option>
+        <option value="polarArea" ${S.analyticsViews.type === 'polarArea' ? 'selected' : ''}>Polar area</option>
+      </select>
+    </div>
     <div class="charts-grid" id="ch-type"></div>`;
 
   const PALETTES = {
@@ -1346,7 +1420,7 @@ function renderAnalytics() {
     type:     ['#533AB7','#185FA5','#3B6D11','#A32D2D','#c47a0f','#0F6E56'],
   };
 
-  function buildCharts(containerId, dataFn, palKey) {
+  function buildCharts(containerId, dataFn, palKey, chartType) {
     const container = document.getElementById(containerId);
     container.innerHTML = loaded.map(p=>`
       <div class="chart-card">
@@ -1366,11 +1440,13 @@ function renderAnalytics() {
       const ctx     = document.getElementById(`c_${containerId}_${p.key}`);
       if (!ctx) return;
 
+      const normalized = ['doughnut','pie','bar','polarArea'].includes(chartType) ? chartType : 'doughnut';
       const chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data:counts, backgroundColor:colors, borderWidth:2, borderColor:'#ffffff' }] },
+        type: normalized,
+        data: { labels, datasets: [{ data:counts, backgroundColor:colors, borderWidth: normalized === 'bar' ? 1 : 2, borderColor:'#ffffff' }] },
         options: {
           responsive: true, maintainAspectRatio: false,
+          scales: normalized === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {},
           plugins: {
             legend: { display:false },
             tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} (${Math.round(c.raw/(counts.reduce((a,b)=>a+b,0)||1)*100)}%)` } }
@@ -1387,6 +1463,117 @@ function renderAnalytics() {
 
   // ── Phase pipeline table ────────────────────────────────────────────────
   (function buildPipeline() {
+    if (S.analyticsViews.phase !== 'table') {
+      const labels = loaded.map(proj => proj.name);
+      const phaseDatasets = PHASES.map(p => ({
+        label: p.label,
+        data: loaded.map(proj => {
+          const issues = S.cache[proj.key].issues || [];
+          return issues.filter(i => p.re.test((i.fields?.status?.name||'').trim())).length;
+        }),
+        backgroundColor: p.color,
+        borderWidth: 0
+      }));
+      phaseDatasets.push({
+        label: 'Other',
+        data: loaded.map(proj => {
+          const issues = S.cache[proj.key].issues || [];
+          return issues.filter(i => !getPhaseForStatus(i.fields?.status?.name||'')).length;
+        }),
+        backgroundColor: '#888780',
+        borderWidth: 0
+      });
+
+      const phaseMode = S.analyticsViews.phase;
+      if (phaseMode === 'doughnut') {
+        const totals = phaseDatasets.map(ds => (ds.data || []).reduce((a, b) => a + b, 0));
+        const colors = phaseDatasets.map(ds => ds.backgroundColor);
+        document.getElementById('ch-pipeline').innerHTML =
+          `<div class="chart-card" style="margin-bottom:28px">
+            <h3>Overall phase distribution</h3>
+            <div class="chart-sub">All loaded projects combined</div>
+            <div style="position:relative;width:100%;height:320px">
+              <canvas id="c_phase_overview" role="img" aria-label="Overall phase distribution"></canvas>
+            </div>
+          </div>`;
+
+        const ctx = document.getElementById('c_phase_overview');
+        if (ctx) {
+          const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: phaseDatasets.map(ds => ds.label), datasets: [{ data: totals, backgroundColor: colors, borderWidth: 2, borderColor:'#ffffff' }] },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: true, position: 'bottom' },
+                tooltip: {
+                  callbacks: {
+                    label: c => {
+                      const sum = totals.reduce((a, b) => a + b, 0) || 1;
+                      return ` ${c.label}: ${c.raw} (${Math.round(c.raw / sum * 100)}%)`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+          S.charts.phase_overview = chart;
+        }
+        return;
+      }
+
+      const totalsPerProject = labels.map((_, idx) => phaseDatasets.reduce((a, ds) => a + (ds.data[idx] || 0), 0) || 1);
+      const datasets = phaseMode === 'bar100'
+        ? phaseDatasets.map(ds => ({
+            ...ds,
+            data: ds.data.map((count, idx) => Math.round((count / totalsPerProject[idx]) * 1000) / 10),
+          }))
+        : phaseDatasets;
+      const isStacked = phaseMode !== 'grouped';
+      const subLabel = phaseMode === 'bar100' ? '100% stacked by project' : (phaseMode === 'grouped' ? 'Grouped bars by project' : 'Stacked bar chart');
+
+      document.getElementById('ch-pipeline').innerHTML =
+        `<div class="chart-card" style="margin-bottom:28px">
+          <h3>Issues by project and phase</h3>
+          <div class="chart-sub">${subLabel}</div>
+          <div style="position:relative;width:100%;height:320px">
+            <canvas id="c_phase_overview" role="img" aria-label="Phase breakdown chart"></canvas>
+          </div>
+        </div>`;
+
+      const ctx = document.getElementById('c_phase_overview');
+      if (ctx) {
+        const chart = new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: isStacked },
+              y: {
+                stacked: isStacked,
+                beginAtZero: true,
+                max: phaseMode === 'bar100' ? 100 : undefined,
+                ticks: phaseMode === 'bar100' ? { callback: v => v + '%' } : { precision: 0 }
+              }
+            },
+            plugins: {
+              legend: { display: true, position: 'bottom' },
+              tooltip: {
+                callbacks: phaseMode === 'bar100' ? {
+                  label: c => ` ${c.dataset.label}: ${c.raw}%`
+                } : {}
+              }
+            }
+          }
+        });
+        S.charts.phase_overview = chart;
+      }
+      return;
+    }
+
     const rows = loaded.map(proj => {
       const issues = S.cache[proj.key].issues || [];
       const tot = issues.length || 1;
@@ -1451,6 +1638,52 @@ function renderAnalytics() {
 
     const devEntries = Object.entries(devMap).sort((a, b) => b[1].length - a[1].length);
 
+    if (S.analyticsViews.dev === 'bar') {
+      const topEntries = devEntries.slice(0, 12);
+      const labels = topEntries.map(([dev]) => dev);
+      const datasets = PHASES.map(p => ({
+        label: p.label,
+        data: topEntries.map(([,items]) => items.filter(({issue}) => p.re.test((issue.fields?.status?.name||'').trim())).length),
+        backgroundColor: p.color,
+        borderWidth: 0
+      }));
+      datasets.push({
+        label: 'Other',
+        data: topEntries.map(([,items]) => items.filter(({issue}) => !getPhaseForStatus(issue.fields?.status?.name||'')).length),
+        backgroundColor: '#888780',
+        borderWidth: 0
+      });
+
+      document.getElementById('ch-devprogress').innerHTML =
+        `<div class="chart-card" style="margin-bottom:28px">
+          <h3>Top developers by ticket count</h3>
+          <div class="chart-sub">Showing top ${topEntries.length} developers, stacked by phase</div>
+          <div style="position:relative;width:100%;height:340px">
+            <canvas id="c_dev_overview" role="img" aria-label="Developer progress chart"></canvas>
+          </div>
+        </div>`;
+
+      const ctx = document.getElementById('c_dev_overview');
+      if (ctx) {
+        const chart = new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+              y: { stacked: true }
+            },
+            plugins: { legend: { display: true, position: 'bottom' } }
+          }
+        });
+        S.charts.dev_overview = chart;
+      }
+      return;
+    }
+
     const headerCells = PHASES.map(p =>
       `<th class="ph-col" style="color:${p.color}">${esc(p.label)}</th>`
     ).join('');
@@ -1505,8 +1738,8 @@ function renderAnalytics() {
       </table>`;
   })();
 
-  buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority');
-  buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type');
+  buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority', S.analyticsViews.priority);
+  buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type', S.analyticsViews.type);
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────────
