@@ -1,0 +1,14 @@
+{
+  "name": "jira-dashboard",
+  "version": "1.0.0",
+  "description": "Jira Dashboard with local CORS proxy",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.22.2",
+    "node-fetch": "^2.7.0",
+    "open": "^8.4.2"
+  }
+}

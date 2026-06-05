@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jira Dashboard — N2026.R2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f7f6f3; --bg3: #f0efe9;
+  --text: #1a1a18; --text2: #5a5955; --text3: #9b9a96;
+  --border: rgba(0,0,0,0.11); --border2: rgba(0,0,0,0.20);
+  --blue: #185FA5; --blue-bg: #E6F1FB;
+  --green: #2d6a10; --green-bg: #EAF3DE;
+  --red: #A32D2D; --red-bg: #FCEBEB;
+  --amber: #7a4808; --amber-bg: #FAEEDA;
+  --purple: #533AB7;
+  --sidebar-w: 232px; --header-h: 52px;
+  --radius: 8px; --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e7e2; --text2: #9b9a96; --text3: #6b6a66;
+    --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
+    --blue: #5b9fd6; --blue-bg: #0c2d4a;
+    --green: #7cb842; --green-bg: #1a3308;
+    --red: #e07070; --red-bg: #3a1010;
+    --amber: #e0a040; --amber-bg: #3a2000;
+  }
+}
+/* Manual theme override takes precedence over OS preference */
+body.theme-light {
+  --bg: #ffffff; --bg2: #f7f6f3; --bg3: #f0efe9;
+  --text: #1a1a18; --text2: #5a5955; --text3: #9b9a96;
+  --border: rgba(0,0,0,0.11); --border2: rgba(0,0,0,0.20);
+  --blue: #185FA5; --blue-bg: #E6F1FB;
+  --green: #2d6a10; --green-bg: #EAF3DE;
+  --red: #A32D2D; --red-bg: #FCEBEB;
+  --amber: #7a4808; --amber-bg: #FAEEDA;
+}
+body.theme-dark {
+  --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+  --text: #e8e7e2; --text2: #9b9a96; --text3: #6b6a66;
+  --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
+  --blue: #5b9fd6; --blue-bg: #0c2d4a;
+  --green: #7cb842; --green-bg: #1a3308;
+  --red: #e07070; --red-bg: #3a1010;
+  --amber: #e0a040; --amber-bg: #3a2000;
+}
+html, body { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: var(--bg3); color: var(--text); }
+
+/* ── Layout ── */
+#app { display: flex; height: 100vh; }
+#sidebar { width: var(--sidebar-w); background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+#topbar { height: var(--header-h); background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; }
+#topbar h1 { font-size: 15px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#content { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg3); }
+
+/* ── Sidebar ── */
+.sidebar-brand { padding: 13px 16px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 30px; height: 30px; background: #185FA5; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.brand-icon svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; }
+.brand-text { font-size: 13px; font-weight: 600; }
+.brand-sub { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.sec-label { padding: 14px 14px 4px; font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; margin: 1px 6px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); background: none; border: none; width: calc(100% - 12px); text-align: left; font-family: inherit; transition: background .12s, color .12s; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: 0 0 0 0.5px var(--border); }
+.proj-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); cursor: pointer; font-size: 13px; color: var(--text); font-family: inherit; transition: background .12s; white-space: nowrap; }
+.btn:hover { background: var(--bg2); }
+.btn:active { transform: scale(0.98); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn.primary:hover { opacity: .85; }
+.btn svg { width: 14px; height: 14px; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* ── Pages ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Setup ── */
+.setup-wrap { max-width: 560px; margin: 28px auto; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; }
+.card h2 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.card .desc { font-size: 13px; color: var(--text2); line-height: 1.65; margin-bottom: 22px; }
+.field-row { margin-bottom: 14px; }
+.field-row label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
+.field-row label a { color: var(--blue); }
+.field-row input, .field-row select { width: 100%; padding: 8px 11px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); font-size: 13px; font-family: inherit; }
+.field-row input:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.setup-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.msg { margin-top: 12px; font-size: 13px; padding: 9px 13px; border-radius: var(--radius); display: none; }
+.msg.ok { background: var(--green-bg); color: var(--green); display: block; }
+.msg.err { background: var(--red-bg); color: var(--red); display: block; }
+.proxy-status { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 10px 14px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--bg2); }
+.dot-ok  { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.dot-err { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+.dot-chk { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+/* ── Project page ── */
+.proj-header { margin-bottom: 18px; }
+.proj-title { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.proj-title h2 { font-size: 18px; font-weight: 600; }
+.jql-box { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 11px; color: var(--text3); background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: block; }
+.jql-box.expanded { white-space: normal; word-break: break-all; }
+
+.stat-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; transition: border-color .12s, background .12s; user-select: none; }
+.stat-card:hover { background: var(--bg2); border-color: var(--border2); }
+.stat-card.active { border-color: var(--blue); background: var(--blue-bg); }
+.stat-card.active .sl { color: var(--blue); }
+.stat-card.active .sv { color: var(--blue); }
+.stat-card .sl { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+.stat-card .sv { font-size: 22px; font-weight: 700; }
+
+.table-wrap { overflow: auto; max-height: calc(100vh - 240px); background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
+table.issues { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.issues th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 0.5px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+table.issues td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.issues tr:last-child td { border-bottom: none; }
+table.issues tr:hover td { background: var(--bg2); }
+.key-link { color: var(--blue); font-family: monospace; font-size: 11px; font-weight: 600; text-decoration: none; }
+.key-link:hover { text-decoration: underline; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.b-todo    { background: var(--bg3); color: var(--text3); }
+.b-ip      { background: var(--blue-bg); color: var(--blue); }
+.b-done    { background: var(--green-bg); color: var(--green); }
+.b-blocked { background: var(--red-bg); color: var(--red); }
+.b-review  { background: var(--amber-bg); color: var(--amber); }
+.pri-high  { color: var(--red); font-weight: 600; }
+.pri-med   { color: var(--amber); }
+.pri-low   { color: var(--green); }
+.type-epic  { background: var(--purple); color: #fff; padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; display: inline-block; }
+.type-enh   { background: var(--blue-bg); color: var(--blue); padding: 1px 7px; border-radius: 4px; font-size: 10px; display: inline-block; }
+.type-other { background: var(--bg3); color: var(--text2); padding: 1px 7px; border-radius: 4px; font-size: 10px; display: inline-block; }
+
+/* ── State helpers ── */
+.state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; gap: 12px; color: var(--text2); font-size: 13px; }
+.spinner { width: 22px; height: 22px; border: 2px solid var(--border); border-top-color: var(--text2); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.err-box  { background: var(--red-bg); border: 0.5px solid rgba(163,45,45,.25); border-radius: var(--radius); padding: 12px 16px; color: var(--red); font-size: 13px; margin-bottom: 12px; line-height: 1.6; }
+.info-box { background: var(--blue-bg); border: 0.5px solid rgba(24,95,165,.2); border-radius: var(--radius); padding: 12px 16px; color: var(--blue); font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+
+/* ── Fields ── */
+.fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-bottom: 20px; }
+.fcheck { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--bg); transition: border-color .12s; user-select: none; }
+.fcheck:hover { border-color: var(--border2); }
+.fcheck.on { border-color: var(--blue); background: var(--blue-bg); }
+.fcheck input { display: none; }
+.fcheck-box { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.fcheck.on .fcheck-box { background: var(--blue); border-color: var(--blue); }
+.fcheck-tick { display: none; }
+.fcheck.on .fcheck-tick { display: block; }
+.fid-row { display: flex; flex-direction: column; gap: 3px; }
+.fid-row label { font-size: 11px; color: var(--text3); }
+.fid-row input { padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); font-size: 12px; font-family: monospace; width: 100%; }
+
+/* ── Analytics ── */
+.analytics-head h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.analytics-head .sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.chart-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+.chart-card h3 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; margin-bottom: 2px; }
+.chart-sub { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.legend span { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
+.legend b { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+/* ── Phase pipeline ── */
+.pipeline-table { width:100%; border-collapse:collapse; margin-bottom:28px; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+.pipeline-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:10px 14px; border-bottom:0.5px solid var(--border); text-align:left; white-space:nowrap; }
+.pipeline-table th.ph-col { text-align:center; }
+.pipeline-table td { padding:12px 14px; border-bottom:0.5px solid var(--border); vertical-align:middle; }
+.pipeline-table tr:last-child td { border-bottom:none; }
+.pipeline-table tr:hover td { background:var(--bg2); }
+.proj-name-cell { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; white-space:nowrap; }
+.ph-count { text-align:center; font-size:15px; font-weight:700; }
+.ph-count .ph-pct { display:block; font-size:10px; font-weight:400; color:var(--text3); margin-top:1px; }
+.pipeline-bar-cell { width:100%; min-width:120px; }
+.pipeline-bar { display:flex; height:12px; border-radius:6px; overflow:hidden; gap:1px; }
+.pipeline-bar-seg { flex:0 0 auto; transition:flex .3s; }
+.progress-pill { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; background:var(--green-bg); color:var(--green); white-space:nowrap; }
+/* ── Refresh overlay ── */
+#refresh-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); }
+#refresh-overlay.hidden { display:none; }
+.refresh-modal { background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); padding:28px 32px; min-width:340px; max-width:440px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,.35); }
+.refresh-modal h3 { font-size:15px; font-weight:600; margin-bottom:18px; }
+.refresh-proj-row { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; border-bottom:0.5px solid var(--border); }
+.refresh-proj-row:last-child { border-bottom:none; }
+.refresh-proj-name { flex:1; }
+.refresh-status { font-size:12px; white-space:nowrap; }
+.refresh-status.pending  { color:var(--text3); }
+.refresh-status.loading  { color:var(--blue); }
+.refresh-status.ok       { color:var(--green); }
+.refresh-status.err      { color:var(--red); }
+.refresh-bar-wrap { height:4px; background:var(--bg3); border-radius:2px; margin:18px 0 6px; overflow:hidden; }
+.refresh-bar { height:100%; background:var(--blue); border-radius:2px; transition:width .3s; }
+/* ── Team view ── */
+.team-toolbar { display:flex; align-items:flex-start; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+.team-search { padding:6px 10px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; width:200px; }
+.team-search:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+/* multi-select dropdown */
+.ms-wrap { position:relative; display:inline-block; }
+.ms-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap; min-width:130px; user-select:none; }
+.ms-btn:hover { background:var(--bg2); }
+.ms-btn.has-selection { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+.ms-btn svg { width:12px; height:12px; margin-left:auto; flex-shrink:0; }
+.ms-badge { background:var(--blue); color:#fff; border-radius:10px; font-size:10px; font-weight:700; padding:1px 5px; margin-left:2px; }
+.ms-dropdown { position:absolute; top:calc(100% + 4px); left:0; min-width:200px; max-width:280px; background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); box-shadow:0 8px 24px rgba(0,0,0,.18); z-index:200; display:none; overflow:hidden; }
+.ms-dropdown.open { display:block; }
+.ms-dropdown-search { padding:8px 10px 6px; border-bottom:0.5px solid var(--border); }
+.ms-dropdown-search input { width:100%; padding:5px 8px; border:0.5px solid var(--border2); border-radius:var(--radius); background:var(--bg2); color:var(--text); font-size:12px; font-family:inherit; }
+.ms-dropdown-search input:focus { outline:2px solid var(--blue); outline-offset:-1px; }
+.ms-options { max-height:220px; overflow-y:auto; padding:4px 0; }
+.ms-option { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
+.ms-option:hover { background:var(--bg2); }
+.ms-option input[type=checkbox] { width:13px; height:13px; accent-color:var(--blue); flex-shrink:0; }
+.ms-option-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ms-footer { display:flex; justify-content:space-between; padding:6px 10px; border-top:0.5px solid var(--border); }
+.ms-footer button { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-family:inherit; padding:2px 4px; }
+.ms-footer button:hover { text-decoration:underline; }
+.team-dev-block { margin-bottom:24px; }
+.team-dev-header { display:flex; align-items:center; gap:10px; padding:8px 0 6px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:14px; font-weight:600; }
+.team-dev-count { font-size:11px; font-weight:400; color:var(--text3); margin-left:4px; }
+.team-table { width:100%; border-collapse:collapse; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+.team-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:8px 14px; border-bottom:0.5px solid var(--border); background:var(--bg2); text-align:left; white-space:nowrap; cursor:pointer; user-select:none; }
+.team-table th:hover { color:var(--text); }
+.team-table th .sort-icon { opacity:.4; margin-left:3px; font-size:10px; }
+.team-table th.sorted .sort-icon { opacity:1; color:var(--blue); }
+.team-table td { padding:9px 14px; border-bottom:0.5px solid var(--border); font-size:13px; vertical-align:middle; }
+.team-table tr:last-child td { border-bottom:none; }
+.team-table tr:hover td { background:var(--bg2); cursor:pointer; }
+.team-proj-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+.team-empty { font-size:13px; color:var(--text3); padding:32px 0; text-align:center; }
+.log-empty { font-size:13px; color:var(--text3); padding:32px 0; text-align:center; }
+/* ── Field Inspector ── */
+.inspector-table { width:100%; border-collapse:collapse; font-size:12px; }
+.inspector-table th { text-align:left; padding:5px 10px; background:var(--bg3); border-bottom:0.5px solid var(--border); color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; }
+.inspector-table td { padding:5px 10px; border-bottom:0.5px solid var(--border); vertical-align:middle; }
+.inspector-table tr:last-child td { border-bottom:none; }
+.inspector-table tr:hover td { background:var(--bg3); }
+.inspector-id { font-family:monospace; color:var(--blue); white-space:nowrap; }
+.inspector-val { color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:260px; }
+.inspector-map-btn { font-size:10px; padding:2px 6px; margin:1px; white-space:nowrap; }
+.inspector-mapped { font-size:11px; color:var(--green); white-space:nowrap; font-weight:600; }
+.log-refresh-block { margin-bottom:28px; }
+.log-refresh-header { display:flex; align-items:center; gap:10px; padding:10px 0 8px; border-bottom:2px solid var(--border2); margin-bottom:0; font-size:13px; font-weight:600; }
+.log-refresh-time { font-size:11px; color:var(--text3); font-weight:400; margin-left:auto; white-space:nowrap; }
+.log-table { width:100%; border-collapse:collapse; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:4px; }
+.log-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:8px 14px; border-bottom:0.5px solid var(--border); text-align:left; background:var(--bg2); white-space:nowrap; }
+.log-table td { padding:9px 14px; border-bottom:0.5px solid var(--border); font-size:12px; vertical-align:middle; }
+.log-table tr:last-child td { border-bottom:none; }
+.log-table tr:hover td { background:var(--bg2); }
+.log-table tbody tr.no-changes td { color:var(--text3); font-style:italic; }
+.log-key-link { font-family:monospace; font-size:11px; color:var(--blue); text-decoration:none; white-space:nowrap; }
+.log-key-link:hover { text-decoration:underline; }
+.log-summary-cell { max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text2); }
+.log-badge-from { background:var(--bg3); color:var(--text2); font-size:11px; padding:2px 7px; border-radius:4px; white-space:nowrap; display:inline-block; }
+.log-badge-to   { font-size:11px; padding:2px 7px; border-radius:4px; white-space:nowrap; font-weight:600; display:inline-block; }
+.log-proj-cell  { display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:500; }
+.phase-legend-row { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.phase-legend-item { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text2); }
+.phase-legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Section heading ── */
+.section-h { font-size: 13px; font-weight: 600; color: var(--text2); margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+.section-h::after { content:''; flex:1; height:0.5px; background:var(--border); }
+
+code { font-family: monospace; font-size: 12px; background: var(--bg3); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Sidebar ── -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </div>
+      <div><div class="brand-text">Jira Dashboard</div><div class="brand-sub">N2026.R2 Release</div></div>
+    </div>
+
+    <div class="sec-label">Projects</div>
+    <button class="nav-item" onclick="nav('p0')" id="nav-p0"><span class="proj-dot" style="background:#185FA5"></span>Lease Accounting 6.x</button>
+    <button class="nav-item" onclick="nav('p1')" id="nav-p1"><span class="proj-dot" style="background:#3B6D11"></span>FOS, Sync Bot &amp; User Aux</button>
+    <button class="nav-item" onclick="nav('p2')" id="nav-p2"><span class="proj-dot" style="background:#c47a0f"></span>SAP Posting Bot</button>
+    <button class="nav-item" onclick="nav('p3')" id="nav-p3"><span class="proj-dot" style="background:#533AB7"></span>General Ledger</button>
+    <button class="nav-item" onclick="nav('p4')" id="nav-p4"><span class="proj-dot" style="background:#993556"></span>Fixed Asset Accounting</button>
+    <button class="nav-item" onclick="nav('p5')" id="nav-p5"><span class="proj-dot" style="background:#0F6E56"></span>Procure To Pay</button>
+
+    <div class="sec-label">Insights</div>
+    <button class="nav-item" onclick="nav('analytics')" id="nav-analytics">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Analytics
+    </button>
+
+    <button class="nav-item" onclick="nav('log')" id="nav-log">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Change Log
+      <span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>
+    </button>
+    <button class="nav-item" onclick="nav('team')" id="nav-team">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Team View
+    </button>
+
+    <div class="sec-label">Config</div>
+    <button class="nav-item" onclick="nav('projects-config')" id="nav-projects-config">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Projects
+    </button>
+    <button class="nav-item" onclick="nav('fields')" id="nav-fields">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Field Configuration
+    </button>
+    <button class="nav-item" onclick="nav('setup')" id="nav-setup">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Jira Setup
+    </button>
+  </nav>
+
+  <!-- ── Main ── -->
+  <div id="main">
+    <div id="topbar">
+      <h1 id="topbar-title">Jira Dashboard</h1>
+      <div id="proxy-indicator"></div>
+      <button class="btn btn-sm" id="theme-btn" onclick="toggleTheme()" title="Switch between light and dark theme">
+        Theme: Light
+      </button>
+      <button class="btn btn-sm" onclick="exportCSV()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
+      <button class="btn btn-sm" id="refresh-btn" onclick="refreshAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.56"/></svg>
+        Refresh All
+      </button>
+    </div>
+
+    <div id="refresh-overlay" class="hidden">
+      <div class="refresh-modal">
+        <h3>Refreshing all projects…</h3>
+        <div id="refresh-rows"></div>
+        <div class="refresh-bar-wrap"><div class="refresh-bar" id="refresh-bar" style="width:0%"></div></div>
+        <div style="font-size:12px;color:var(--text3);text-align:right" id="refresh-summary">0 / …</div>
+      </div>
+    </div>
+
+    <!-- Project add/edit modal -->
+    <div id="proj-modal-overlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+      <div style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:28px 32px;width:560px;max-width:95vw">
+        <h3 id="proj-modal-title" style="font-size:16px;font-weight:600;margin-bottom:18px">Add project</h3>
+        <div class="field-row" style="margin-bottom:12px">
+          <label>Project name</label>
+          <input type="text" id="pmod-name" placeholder="e.g. My New Module" style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;width:100%;box-sizing:border-box" />
+        </div>
+        <div class="field-row" style="margin-bottom:12px">
+          <label>Short key (used for caching, e.g. MNM)</label>
+          <input type="text" id="pmod-key" placeholder="e.g. MNM" style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;width:100%;box-sizing:border-box" />
+        </div>
+        <div class="field-row" style="margin-bottom:12px">
+          <label>Color</label>
+          <input type="color" id="pmod-color" value="#185FA5" style="height:36px;width:72px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;padding:2px" />
+        </div>
+        <div class="field-row" style="margin-bottom:18px">
+          <label>JQL query</label>
+          <textarea id="pmod-jql" rows="4" placeholder='project in (ABC) AND fixVersion = "v1.0" ORDER BY status DESC' style="padding:7px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:12px;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical"></textarea>
+        </div>
+        <div id="pmod-msg" style="font-size:12px;color:var(--red);margin-bottom:10px;min-height:16px"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn" onclick="closeProjectModal()">Cancel</button>
+          <button class="btn primary" onclick="saveProjectModal()">Save project</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="content">
+
+      <!-- Setup -->
+      <div class="page active" id="page-setup">
+        <div class="setup-wrap">
+
+          <!-- Proxy status card -->
+          <div class="card">
+            <h2>Proxy status</h2>
+            <p class="desc">This app uses a local Node.js proxy to talk to Jira (avoids browser CORS restrictions).<br>The proxy must be running before you can fetch data.</p>
+            <div class="proxy-status" id="proxy-status-box">
+              <span class="dot-chk" id="proxy-dot"></span>
+              <span id="proxy-status-text">Checking proxy…</span>
+            </div>
+            <div style="margin-top:14px; font-size:13px; color:var(--text2); line-height:1.8;">
+              To start the proxy, open a terminal in the <code>jira-dashboard</code> folder and run:<br>
+              <code style="display:inline-block; margin-top:6px; padding:6px 12px; background:var(--bg3); border-radius:6px;">node proxy.js</code>
+            </div>
+          </div>
+
+          <!-- Jira credentials -->
+          <div class="card">
+            <h2>Jira credentials</h2>
+            <p class="desc">Stored in <strong>localStorage</strong> — never leaves your machine. The proxy forwards requests to your Jira using Basic Auth.</p>
+            <div class="field-row">
+              <label>Jira base URL</label>
+              <input type="text" id="inp-url" placeholder="https://yourcompany.atlassian.net" />
+            </div>
+            <div class="field-row">
+              <label>Email</label>
+              <input type="email" id="inp-email" placeholder="you@company.com" />
+            </div>
+            <div class="field-row">
+              <label>API token &nbsp;<a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Generate ↗</a></label>
+              <input type="password" id="inp-token" placeholder="Atlassian API token" />
+            </div>
+            <div class="setup-actions">
+              <button class="btn primary" onclick="saveCredentials()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Save
+              </button>
+              <button class="btn" onclick="testConnection()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Test connection
+              </button>
+            </div>
+            <div class="msg" id="setup-msg"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Projects Config -->
+      <div class="page" id="page-projects-config">
+        <div style="max-width:860px">
+          <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Project Configuration</h2>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:20px">Enable/disable projects, remove/restore built-ins, and edit JQL per project. Custom projects can also be added, edited, and deleted.</p>
+
+          <!-- Built-in -->
+          <div class="section-h">Built-in projects</div>
+          <div id="pc-builtin" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px"></div>
+
+          <!-- Custom -->
+          <div class="section-h" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Custom projects</span>
+            <button class="btn btn-sm primary" onclick="openProjectModal()">+ Add project</button>
+          </div>
+          <div id="pc-custom" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">
+            <p id="pc-empty" style="font-size:13px;color:var(--text3)">No custom projects yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fields -->
+      <div class="page" id="page-fields">
+        <div style="max-width:900px">
+          <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">Field configuration</h2>
+          <p style="font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:20px">Choose which columns to display. For custom fields, update the field IDs to match your Jira instance (Jira Admin → Issues → Custom Fields).</p>
+          <div class="info-box">Custom field IDs like <code>customfield_10200</code> differ per Jira instance. Use <strong>Auto-discover</strong> or the <strong>Field Inspector</strong> below to find the right IDs.</div>
+          <div class="fields-grid" id="fields-grid"></div>
+          <div class="section-h">Custom field ID mapping</div>
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="discoverFields()">Auto-discover from Jira</button>
+            <button class="btn btn-sm" onclick="document.getElementById('inspector-panel').style.display=document.getElementById('inspector-panel').style.display==='none'?'block':'none'">Field Inspector…</button>
+            <span id="discover-msg" style="font-size:12px;color:var(--text3)"></span>
+          </div>
+          <!-- Field Inspector -->
+          <div id="inspector-panel" style="display:none;margin-bottom:18px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius-lg);padding:18px">
+            <h3 style="font-size:13px;font-weight:600;margin-bottom:10px">Field Inspector — enter a ticket key to see all its raw fields</h3>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+              <input id="inspector-key" type="text" placeholder="e.g. NFS-123" style="padding:6px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;width:180px" />
+              <button class="btn btn-sm primary" onclick="inspectIssue()">Fetch fields</button>
+              <span id="inspector-msg" style="font-size:12px;color:var(--text3)"></span>
+            </div>
+            <div id="inspector-results"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:22px" id="custom-ids"></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn primary" onclick="saveFields()">Save configuration</button>
+            <button class="btn" onclick="resetFields()">Reset to defaults</button>
+          </div>
+          <div id="fields-msg" style="margin-top:10px;font-size:13px;color:var(--green)"></div>
+        </div>
+      </div>
+
+      <!-- Analytics -->
+      <div class="page" id="page-analytics">
+        <div class="analytics-head">
+          <h2>Analytics — N2026.R2</h2>
+          <p class="sub">Status, priority, and issue-type breakdowns per project. Load each project first to populate.</p>
+        </div>
+        <div id="analytics-body"></div>
+      </div>
+
+      <!-- Team View -->
+      <div class="page" id="page-team">
+        <div style="max-width:1100px">
+          <div class="team-toolbar">
+            <div style="flex:1">
+              <h2 style="font-size:18px;font-weight:600;margin-bottom:2px">Team View</h2>
+              <p style="font-size:13px;color:var(--text2)">Tickets grouped by developer across all projects.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div class="ms-wrap" id="ms-wrap-project">
+                <div class="ms-btn" id="ms-btn-project" onclick="toggleMs('project')">
+                  <span id="ms-label-project">Projects</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-project">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('project',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-project"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('project')">Select all</button><button onclick="clearMs('project')">Clear</button></div>
+                </div>
+              </div>
+              <div class="ms-wrap" id="ms-wrap-phase">
+                <div class="ms-btn" id="ms-btn-phase" onclick="toggleMs('phase')">
+                  <span id="ms-label-phase">Phases</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-phase">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('phase',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-phase"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('phase')">Select all</button><button onclick="clearMs('phase')">Clear</button></div>
+                </div>
+              </div>
+              <div class="ms-wrap" id="ms-wrap-dev">
+                <div class="ms-btn" id="ms-btn-dev" onclick="toggleMs('dev')">
+                  <span id="ms-label-dev">Developers</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-dev">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('dev',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-dev"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('dev')">Select all</button><button onclick="clearMs('dev')">Clear</button></div>
+                </div>
+              </div>
+              <input id="team-search" class="team-search" type="text" placeholder="Search key or summary…" oninput="renderTeam()" />
+            </div>
+          </div>
+          <div id="team-body"></div>
+        </div>
+      </div>
+
+      <!-- Change Log -->
+      <div class="page" id="page-log">
+        <div style="max-width:860px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div>
+              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Change Log</h2>
+              <p style="font-size:13px;color:var(--text2)">Status changes detected on each Refresh All.</p>
+            </div>
+            <button class="btn btn-sm" onclick="clearLog()">Clear log</button>
+          </div>
+          <div id="log-body"></div>
+        </div>
+      </div>
+
+      <!-- Project pages -->
+      <div class="page" id="page-p0"></div>
+      <div class="page" id="page-p1"></div>
+      <div class="page" id="page-p2"></div>
+      <div class="page" id="page-p3"></div>
+      <div class="page" id="page-p4"></div>
+      <div class="page" id="page-p5"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const PROXY = 'http://localhost:3131/jira-api';
+
+const PHASES = [
+  { label: 'Product',           re: /^prod/i,                                                        color: '#533AB7' },
+  { label: 'Developer Pending', re: /^dev[\s-]*pending/i,                                            color: '#854F0B' },
+  { label: 'Developing',        re: /^dev[\s-]*(developing|designing|grooming|cr|merge|reopened)/i,  color: '#185FA5' },
+
+  { label: 'QA',                re: /^(qa|pqa|pending[\s-]*dep|eoa[\s-]*pending)/i,                  color: '#0F6E56' },
+  { label: 'Closed',            re: /^(closed|done|resolved|cancelled|won't\s*fix)/i,                 color: '#555555' },
+];
+
+function getPhaseForStatus(statusName) {
+  return PHASES.find(p => p.re.test((statusName||'').trim())) || null;
+}
+
+const PROJECTS = [
+  { id:'p0', name:'Lease Accounting 6.x',    key:'NFS', color:'#185FA5',
+    jql:'project in (NFS) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
+  { id:'p1', name:'FOS, Sync Bot & User Aux', key:'FCO', color:'#3B6D11',
+    jql:'project in (FCO) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
+  { id:'p2', name:'SAP Posting Bot',          key:'INC', color:'#c47a0f',
+    jql:'project in (INC) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status DESC, Priority DESC' },
+  { id:'p3', name:'General Ledger',           key:'GL',  color:'#533AB7',
+    jql:'project in (GL) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
+  { id:'p4', name:'Fixed Asset Accounting',   key:'FAA', color:'#993556',
+    jql:'project in (FAA) AND issuetype in (Enhancement, Epic) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC" asc, status desc, Priority DESC' },
+  { id:'p5', name:'Procure To Pay',           key:'P2P', color:'#0F6E56',
+    jql:'project in (P2P) AND issuetype in (Enhancement) AND fixVersion = N2026.R2 ORDER BY "Scope Commitment At SC", status desc, Priority DESC' },
+];
+
+const ALL_FIELDS = [
+  { id:'issuetype',   label:'Issue Type',               jira:'issuetype',         custom:false },
+  { id:'key',         label:'Key',                      jira:'key',               custom:false },
+  { id:'summary',     label:'Summary',                  jira:'summary',           custom:false },
+  { id:'parent',      label:'Parent',                   jira:'parent',            custom:false },
+  { id:'priority',    label:'Priority',                 jira:'priority',          custom:false },
+  { id:'fixVersions', label:'Fix Versions',             jira:'fixVersions',       custom:false },
+  { id:'cf_scope',    label:'Scope Commitment',         jira:'customfield_10200', custom:true  },
+  { id:'cf_scopesc',  label:'Scope Commitment At SC',   jira:'customfield_10201', custom:true  },
+  { id:'status',      label:'Status',                   jira:'status',            custom:false },
+  { id:'cf_clarity',  label:'A + Clarity',              jira:'customfield_10202', custom:true  },
+  { id:'cf_devact',   label:'Dev Actual (Days)',         jira:'customfield_10203', custom:true  },
+  { id:'cf_devest',   label:'Dev Estimate (Days)',       jira:'customfield_10204', custom:true  },
+  { id:'assignee',    label:'Assignee',                 jira:'assignee',          custom:false },
+  { id:'cf_devpart',  label:'Assignee: Development Partner', jira:'customfield_10205', custom:true  },
+  { id:'cf_dev',      label:'Assignee: Development',    jira:'customfield_10206', custom:true  },
+  { id:'cf_product',  label:'Assignee: Product',        jira:'customfield_10207', custom:true  },
+  { id:'cf_custcom',  label:'Customer Commitment',      jira:'customfield_10208', custom:true  },
+];
+
+const DEFAULT_ENABLED = ALL_FIELDS.map(f => f.id);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let S = { page:'setup', creds:{url:'',email:'',token:''}, enabled:[...DEFAULT_ENABLED], customIds:{}, cache:{}, charts:{}, log:[], customProjects:[], projectSettings:{}, theme:'' };
+
+function isBuiltinProjectKey(key) {
+  return PROJECTS.some(p => p.key === key);
+}
+
+function getProjectSettings(key) {
+  if (!S.projectSettings) S.projectSettings = {};
+  if (!S.projectSettings[key]) S.projectSettings[key] = {};
+  return S.projectSettings[key];
+}
+
+function isBuiltinRemoved(key) {
+  return !!getProjectSettings(key).removed;
+}
+
+function isProjectEnabled(key) {
+  return getProjectSettings(key).enabled !== false;
+}
+
+function getProjectJql(proj) {
+  const override = getProjectSettings(proj.key).jql;
+  return override || proj.jql;
+}
+
+function isProjectVisible(proj) {
+  if (isBuiltinProjectKey(proj.key) && isBuiltinRemoved(proj.key)) return false;
+  return isProjectEnabled(proj.key);
+}
+
+function getAllProjects() {
+  return [...PROJECTS, ...(S.customProjects || [])].filter(isProjectVisible);
+}
+
+function getDefaultProjectPage() {
+  const p = getAllProjects()[0];
+  return p ? p.id : 'setup';
+}
+
+function persist() { try { localStorage.setItem('jira_dash_v3', JSON.stringify({...S, charts:{}})); } catch(e){} }
+function hydrate()  {
+  try {
+    const r = localStorage.getItem('jira_dash_v3');
+    if (r) { const p = JSON.parse(r); Object.assign(S, p); S.charts = {}; }
+  } catch(e){}
+}
+function jiraId(f) { return S.customIds[f.id] || f.jira; }
+
+function getPreferredTheme() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme, shouldPersist = true) {
+  const t = (theme === 'dark') ? 'dark' : 'light';
+  S.theme = t;
+  document.body.classList.remove('theme-light', 'theme-dark');
+  document.body.classList.add('theme-' + t);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = 'Theme: ' + (t === 'dark' ? 'Dark' : 'Light');
+  if (shouldPersist) persist();
+}
+
+function toggleTheme() {
+  applyTheme(S.theme === 'dark' ? 'light' : 'dark');
+}
+
+// ── Proxy health check ───────────────────────────────────────────────────────
+async function checkProxy() {
+  const dot  = document.getElementById('proxy-dot');
+  const text = document.getElementById('proxy-status-text');
+  const ind  = document.getElementById('proxy-indicator');
+  try {
+    const r = await fetch(PROXY + '?target=http://localhost:3131/health', { signal: AbortSignal.timeout(2000) }).catch(() => null);
+    // If proxy is running, even a 502 from forwarding means the proxy itself answered
+    dot.className = 'dot-ok';
+    text.textContent = 'Proxy running on port 3131';
+    ind.innerHTML = '<span style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span>Proxy online</span>';
+  } catch(e) {
+    dot.className = 'dot-err';
+    text.textContent = 'Proxy not running — start it with: node proxy.js';
+    ind.innerHTML = '<span style="font-size:12px;color:var(--red);display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block"></span>Proxy offline</span>';
+  }
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function nav(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  const navBtn = document.getElementById('nav-' + id);
+  if (page) page.classList.add('active');
+  if (navBtn) navBtn.classList.add('active');
+  S.page = id;
+
+  const proj = getAllProjects().find(p => p.id === id);
+  if (proj) {
+    document.getElementById('topbar-title').textContent = proj.name;
+    renderProject(proj);
+  } else if (id === 'analytics') {
+    document.getElementById('topbar-title').textContent = 'Analytics';
+    renderAnalytics();
+  } else if (id === 'team') {
+    document.getElementById('topbar-title').textContent = 'Team View';
+    renderTeam();
+  } else if (id === 'log') {
+    document.getElementById('topbar-title').textContent = 'Change Log';
+    renderLog();
+  } else if (id === 'projects-config') {
+    document.getElementById('topbar-title').textContent = 'Projects';
+    renderProjectsConfig();
+  } else if (id === 'fields') {
+    document.getElementById('topbar-title').textContent = 'Field Configuration';
+    renderFields();
+  } else if (id === 'setup') {
+    document.getElementById('topbar-title').textContent = 'Jira Setup';
+    document.getElementById('inp-url').value   = S.creds.url;
+    document.getElementById('inp-email').value = S.creds.email;
+    document.getElementById('inp-token').value = S.creds.token;
+    checkProxy();
+  }
+}
+
+async function refreshAll() {
+  if (!S.creds.url) { nav('setup'); return; }
+
+  const overlay = document.getElementById('refresh-overlay');
+  const rowsEl  = document.getElementById('refresh-rows');
+  const barEl   = document.getElementById('refresh-bar');
+  const summEl  = document.getElementById('refresh-summary');
+  const btn     = document.getElementById('refresh-btn');
+
+  const allProjects = getAllProjects();
+  if (!allProjects.length) {
+    alert('No enabled projects are available. Enable at least one project in Config > Projects.');
+    return;
+  }
+
+  // Build rows
+  rowsEl.innerHTML = allProjects.map(p =>
+    `<div class="refresh-proj-row" id="rrow-${p.key}">
+      <span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
+      <span class="refresh-proj-name">${esc(p.name)}</span>
+      <span class="refresh-status pending" id="rstatus-${p.key}">Waiting…</span>
+    </div>`
+  ).join('');
+
+  summEl.textContent = `0 / ${allProjects.length}`;
+  barEl.style.width = '0%';
+  overlay.classList.remove('hidden');
+  btn.disabled = true;
+
+  // Snapshot old cache for diffing
+  const oldCache = {};
+  allProjects.forEach(p => {
+    if (S.cache[p.key] && !S.cache[p.key].err) {
+      const map = {};
+      (S.cache[p.key].issues || []).forEach(i => { map[i.key] = { status: i.fields?.status?.name||'', summary: i.fields?.summary||'' }; });
+      oldCache[p.key] = map;
+    }
+  });
+
+  // Clear cache
+  S.cache = {};
+
+  // Discover custom field IDs from Jira's /field endpoint before fetching
+  try {
+    const fr = await jiraFetch(S.creds.url + '/rest/api/3/field', S.creds.email, S.creds.token);
+    if (fr.ok) {
+      const allFields = await fr.json();
+      // Build id->name AND name->id maps
+      const nameToId = {};
+      allFields.forEach(f => { if (f.custom && f.id && f.name) nameToId[f.name.toLowerCase()] = f.id; });
+      ALL_FIELDS.filter(f => f.custom).forEach(f => {
+        const label = f.label.toLowerCase();
+        let hit = nameToId[label];
+        if (!hit) {
+          const k = Object.keys(nameToId).find(n => n.includes(label) || label.includes(n));
+          if (k) hit = nameToId[k];
+        }
+        if (hit) { S.customIds[f.id] = hit; }
+      });
+      persist();
+    }
+  } catch(e) { console.warn('[discover] field discovery failed:', e.message); }
+
+  let done = 0;
+  const logEntry = { ts: Date.now(), projects: {} };
+
+  // Fetch sequentially to avoid hammering Jira rate limits
+  for (const proj of allProjects) {
+    const statusEl = document.getElementById('rstatus-' + proj.key);
+    statusEl.className = 'refresh-status loading';
+    statusEl.textContent = 'Loading…';
+
+    const data = await fetchIssues(proj);
+
+    done++;
+    barEl.style.width = Math.round(done / allProjects.length * 100) + '%';
+    summEl.textContent = `${done} / ${allProjects.length}`;
+
+    if (data && !data.err) {
+      S.cache[proj.key] = data;
+      statusEl.className = 'refresh-status ok';
+      statusEl.textContent = `✓ ${(data.issues||[]).length} issues`;
+
+      // Diff against old snapshot
+      const changes = [];
+      const newIssues = data.issues || [];
+      if (oldCache[proj.key]) {
+        newIssues.forEach(i => {
+          const old = oldCache[proj.key][i.key];
+          const newStatus = i.fields?.status?.name || '';
+          if (old && old.status !== newStatus) {
+            changes.push({ key: i.key, summary: i.fields?.summary || '', from: old.status, to: newStatus });
+          }
+        });
+      }
+      logEntry.projects[proj.key] = { name: proj.name, color: proj.color, total: newIssues.length, changes };
+    } else {
+      statusEl.className = 'refresh-status err';
+      statusEl.textContent = '✗ ' + (data?.err || 'Failed').slice(0, 40);
+    }
+  }
+
+  // Save log entry (keep last 20)
+  if (Object.keys(logEntry.projects).length) {
+    S.log.unshift(logEntry);
+    if (S.log.length > 20) S.log.length = 20;
+    updateLogBadge();
+  }
+
+  persist();
+
+  // Brief pause so user sees 100%, then close
+  await new Promise(r => setTimeout(r, 900));
+  overlay.classList.add('hidden');
+  btn.disabled = false;
+
+  // Re-render current view
+  const proj = getAllProjects().find(p => p.id === S.page);
+  if (proj) renderProject(proj);
+  else if (S.page === 'analytics') renderAnalytics();
+}
+
+// ── Credentials ──────────────────────────────────────────────────────────────
+function saveCredentials() {
+  const url   = document.getElementById('inp-url').value.trim().replace(/\/+$/, '');
+  const email = document.getElementById('inp-email').value.trim();
+  const token = document.getElementById('inp-token').value.trim();
+  const msg   = document.getElementById('setup-msg');
+  if (!url || !email || !token) { msg.className='msg err'; msg.textContent='Fill in all three fields.'; return; }
+  S.creds = { url, email, token };
+  persist();
+  msg.className = 'msg ok'; msg.textContent = '✓ Credentials saved.';
+}
+
+async function testConnection() {
+  const url   = document.getElementById('inp-url').value.trim().replace(/\/+$/, '');
+  const email = document.getElementById('inp-email').value.trim();
+  const token = document.getElementById('inp-token').value.trim();
+  const msg   = document.getElementById('setup-msg');
+  if (!url||!email||!token) { msg.className='msg err'; msg.textContent='Fill in all fields first.'; return; }
+  msg.className='msg'; msg.style.display='block'; msg.textContent='Testing…';
+
+  const result = await jiraFetch(url + '/rest/api/3/myself', email, token);
+  if (result.ok) {
+    const d = await result.json().catch(()=>({}));
+    msg.className='msg ok'; msg.textContent='✓ Connected as ' + (d.displayName || d.emailAddress || 'unknown user');
+    S.creds = { url, email, token }; persist();
+  } else {
+    msg.className='msg err'; msg.textContent='✗ HTTP ' + result.status + ' — check credentials or proxy.';
+  }
+}
+
+// ── Jira fetch via proxy ─────────────────────────────────────────────────────
+async function jiraFetch(targetUrl, email, token) {
+  const auth = btoa(unescape(encodeURIComponent((email||S.creds.email) + ':' + (token||S.creds.token))));
+  const proxyUrl = PROXY + '?target=' + encodeURIComponent(targetUrl);
+  return fetch(proxyUrl, { headers: { 'Authorization': 'Basic ' + auth, 'Accept': 'application/json' } });
+}
+
+// Auto-map custom field IDs using a fieldId->name map from Jira's expand=names
+function autoMapFieldsFromNames(names) {
+  // Build reverse map: lowercase name -> fieldId
+  const nameToId = {};
+  Object.entries(names).forEach(([id, name]) => {
+    if (id.startsWith('customfield_')) nameToId[name.toLowerCase()] = id;
+  });
+  let changed = false;
+  ALL_FIELDS.filter(f => f.custom).forEach(f => {
+    const label = f.label.toLowerCase();
+    // 1. Exact match
+    let hit = nameToId[label];
+    // 2. Partial: our label is contained in a Jira field name or vice-versa
+    if (!hit) {
+      const k = Object.keys(nameToId).find(n => n.includes(label) || label.includes(n));
+      if (k) hit = nameToId[k];
+    }
+    if (hit && S.customIds[f.id] !== hit) { S.customIds[f.id] = hit; changed = true; }
+  });
+  if (changed) persist();
+}
+
+async function fetchIssues(proj) {
+  const { url, email, token } = S.creds;
+  if (!url) return { err: 'not_configured' };
+
+  // Request all navigable fields so we always get data regardless of custom field ID configuration.
+  const body = JSON.stringify({ jql: getProjectJql(proj), fields: ['*navigable'], maxResults: 100 });
+  try {
+    const auth = btoa(unescape(encodeURIComponent(S.creds.email + ':' + S.creds.token)));
+    const proxyUrl = PROXY + '?target=' + encodeURIComponent(url + '/rest/api/3/search/jql');
+    const r = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic ' + auth, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!r.ok) { const t = await r.text().catch(()=>''); return { err: 'HTTP ' + r.status + (t ? ': ' + t.slice(0,300) : '') }; }
+    const json = await r.json();
+    return json;
+  } catch(e) {
+    return { err: e.message + ' — is the proxy running? (node proxy.js)' };
+  }
+}
+
+// ── Project page ─────────────────────────────────────────────────────────────
+async function renderProject(proj) {
+  const el = document.getElementById('page-' + proj.id);
+  const effJql = getProjectJql(proj);
+  el.innerHTML = `
+    <div class="proj-header">
+      <div class="proj-title">
+        <span class="proj-dot" style="background:${proj.color};width:12px;height:12px"></span>
+        <h2>${esc(proj.name)}</h2>
+      </div>
+      <div class="jql-box" title="Click to expand/collapse" onclick="this.classList.toggle('expanded')">${esc(effJql)}</div>
+    </div>
+    <div class="stat-strip" id="stats-${proj.key}"></div>
+    <div id="issues-${proj.key}"><div class="state-box"><div class="spinner"></div><span>Loading issues…</span></div></div>`;
+
+  if (!S.creds.url) {
+    document.getElementById('issues-'+proj.key).innerHTML = `<div class="err-box">⚠ Jira not configured. <button class="btn btn-sm" onclick="nav('setup')" style="margin-left:10px">Set up →</button></div>`;
+    return;
+  }
+
+  const data = S.cache[proj.key] || await fetchIssues(proj);
+  if (data && !data.err) { S.cache[proj.key] = data; persist(); }
+
+  const statsEl  = document.getElementById('stats-'  + proj.key);
+  const issuesEl = document.getElementById('issues-' + proj.key);
+
+  if (!data || data.err === 'not_configured') { issuesEl.innerHTML = `<div class="err-box">Configure Jira credentials first.</div>`; return; }
+  if (data.err) { issuesEl.innerHTML = `<div class="err-box">Error: ${esc(data.err)}</div>`; return; }
+
+  const issues = data.issues || [];
+  const total  = data.total ?? issues.length;
+  const sm = {}; issues.forEach(i => { const s = i.fields?.status?.name||'Unknown'; sm[s]=(sm[s]||0)+1; });
+
+  // Desired phases in display order; matched by regex against actual Jira status names
+  // (PHASES is defined globally)
+
+  const phaseCounts = {};
+  PHASES.forEach(p => { phaseCounts[p.label] = 0; });
+  const otherCounts = {};
+
+  Object.entries(sm).forEach(([name, count]) => {
+    const matched = PHASES.find(p => p.re.test(name.trim()));
+    if (matched) {
+      phaseCounts[matched.label] += count;
+    } else {
+      otherCounts[name] = (otherCounts[name] || 0) + count;
+    }
+  });
+
+  // Build stat cards — store filter info so clicking filters the table
+  const cardDefs = [{ label: 'Total', filter: null }]
+    .concat(PHASES.map(p => ({ label: p.label, filter: { type: 'phase', phase: p } })))
+    .concat(Object.entries(otherCounts).sort((a,b) => b[1]-a[1]).map(([name]) => ({ label: name, filter: { type: 'status', name } })));
+
+  // Keep a map of label -> count for rendering
+  const cardCounts = { 'Total': total };
+  PHASES.forEach(p => { cardCounts[p.label] = phaseCounts[p.label]; });
+  Object.entries(otherCounts).forEach(([n,v]) => { cardCounts[n] = v; });
+
+  statsEl.innerHTML = cardDefs.map(({ label }) =>
+    `<div class="stat-card" data-filter-key="${esc(label)}" style="cursor:pointer" onclick="filterByCard('${proj.key}','${esc(label)}')">
+      <div class="sl">${esc(label)}</div><div class="sv">${cardCounts[label]}</div>
+    </div>`
+  ).join('');
+
+  // Store filter state per project key
+  if (!S.activeFilter) S.activeFilter = {};
+  S.activeFilter[proj.key] = null;
+
+  // Store issues & cardDefs for re-render on click
+  if (!S._projData) S._projData = {};
+  S._projData[proj.key] = { issues, vf: null, cardDefs, sm, PHASES };
+
+  renderIssueTable(proj, issues, null);
+}
+
+function navToPhase(projId, phaseLabel) {
+  nav(projId);
+  if (!phaseLabel) return;
+  // Wait for the project page to render, then apply the filter
+  const proj = getAllProjects().find(p => p.id === projId);
+  if (!proj) return;
+  requestAnimationFrame(() => {
+    filterByCard(proj.key, phaseLabel);
+  });
+}
+
+function filterByCard(projKey, label) {
+  if (!S.activeFilter) S.activeFilter = {};
+  const prev = S.activeFilter[projKey];
+  // Toggle off if same card clicked again
+  const next = prev === label ? null : label;
+  S.activeFilter[projKey] = next;
+
+  // Update active style on cards
+  const statsEl = document.getElementById('stats-' + projKey);
+  if (statsEl) {
+    statsEl.querySelectorAll('.stat-card').forEach(el => {
+      el.classList.toggle('active', el.dataset.filterKey === next);
+    });
+  }
+
+  const d = S._projData && S._projData[projKey];
+  if (!d) return;
+
+  let filtered = d.issues;
+  if (next && next !== 'Total') {
+    const phaseDef = d.PHASES.find(p => p.label === next);
+    if (phaseDef) {
+      filtered = d.issues.filter(i => phaseDef.re.test((i.fields?.status?.name||'').trim()));
+    } else {
+      filtered = d.issues.filter(i => (i.fields?.status?.name||'') === next);
+    }
+  }
+  renderIssueTable({ key: projKey }, filtered, next);
+}
+
+function renderIssueTable(proj, issues, activeFilter) {
+  const issuesEl = document.getElementById('issues-' + proj.key);
+  if (!issuesEl) return;
+
+  if (!issues.length) { issuesEl.innerHTML=`<div class="state-box"><span>No issues found${activeFilter && activeFilter!=='Total' ? ' for "'+esc(activeFilter)+'"' : ''}.</span></div>`; return; }
+
+  const vf = S.enabled.map(id => ALL_FIELDS.find(f=>f.id===id)).filter(Boolean);
+  const rows = issues.map(issue => {
+    const cells = vf.map(f => `<td title="${esc(String(getCellValue(issue,f)))}">${renderCell(f,issue)}</td>`).join('');
+    const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key||'') : '#';
+    return `<tr onclick="window.open('${link}','_blank')" style="cursor:pointer">${cells}</tr>`;
+  }).join('');
+
+  issuesEl.innerHTML = `
+    <div class="table-wrap">
+      <table class="issues" aria-label="${esc(proj.key)} issues">
+        <thead><tr>${vf.map(f=>`<th>${esc(f.label)}</th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Field IDs that are Jira user-picker type — always extract displayName
+const USER_FIELD_IDS = new Set(['assignee', 'cf_devpart', 'cf_dev', 'cf_product']);
+
+function extractUserName(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    return val.map(v => (typeof v === 'string') ? v : (v.displayName || v.name || v.accountId || '')).filter(Boolean).join(', ');
+  }
+  return val.displayName || val.name || val.accountId || '';
+}
+
+function getCellValue(issue, f) {
+  if (f.id==='key') return issue.key||'';
+  if (f.id==='parent') {
+    const p = (issue.fields||{}).parent;
+    return p ? (p.key || '') : '';
+  }
+  const val = (issue.fields||{})[jiraId(f)];
+  if (val==null) return '';
+  // User-picker fields: always extract displayName
+  if (USER_FIELD_IDS.has(f.id)) return extractUserName(val);
+  // Suppress Jira error objects (wrong field ID returns {errorMessage:...})
+  if (typeof val==='object' && !Array.isArray(val) && (val.errorMessage || val.errorMessages)) return '';
+  if (typeof val==='string') {
+    // Suppress raw JSON error strings that slipped through
+    if (val.startsWith('{"errorM')) return '';
+    return val;
+  }
+  if (typeof val==='number') return val;
+  if (Array.isArray(val)) {
+    if (!val.length) return '';
+    return val.map(v => {
+      if (typeof v === 'string') return v;
+      return v.displayName || v.name || v.value || String(v);
+    }).filter(Boolean).join(', ');
+  }
+  if (val.displayName) return val.displayName;
+  if (val.name) return val.name;
+  if (val.value) return val.value;
+  if (val.key) return val.key; // e.g. parent
+  return '';
+}
+
+function renderCell(f, issue) {
+  const v = getCellValue(issue, f);
+  const s = String(v);
+  if (f.id==='key') {
+    const link = S.creds.url ? S.creds.url+'/browse/'+s : '#';
+    return `<a class="key-link" href="${link}" target="_blank" onclick="event.stopPropagation()">${esc(s)}</a>`;
+  }
+  if (f.id==='status') {
+    const sl=s.toLowerCase();
+    const cls=/progress|active|dev/i.test(sl)?'b-ip':/done|closed|resolved|complete/i.test(sl)?'b-done':/block/i.test(sl)?'b-blocked':/review|test/i.test(sl)?'b-review':'b-todo';
+    return `<span class="badge ${cls}">${esc(s)}</span>`;
+  }
+  if (f.id==='priority') {
+    const cl=/high|critical|blocker/i.test(s)?'pri-high':/low|minor/i.test(s)?'pri-low':'pri-med';
+    const ar=/high|critical|blocker/i.test(s)?'↑ ':/low|minor/i.test(s)?'↓ ':'→ ';
+    return `<span class="${cl}">${ar}${esc(s)}</span>`;
+  }
+  if (f.id==='issuetype') {
+    const cl=s.toLowerCase()==='epic'?'type-epic':s.toLowerCase()==='enhancement'?'type-enh':'type-other';
+    return `<span class="${cl}">${esc(s)}</span>`;
+  }
+  return esc(s);
+}
+
+// ── Field config ─────────────────────────────────────────────────────────────
+function renderFields() {
+  document.getElementById('fields-grid').innerHTML = ALL_FIELDS.map(f => {
+    const on = S.enabled.includes(f.id);
+    return `<label class="fcheck ${on?'on':''}" id="fc-${f.id}" onclick="toggleField('${f.id}')">
+      <input type="checkbox" ${on?'checked':''} />
+      <span class="fcheck-box"><svg class="fcheck-tick" width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span>${esc(f.label)}</span>
+    </label>`;
+  }).join('');
+
+  document.getElementById('custom-ids').innerHTML = ALL_FIELDS.filter(f=>f.custom).map(f=>`
+    <div class="fid-row">
+      <label>${esc(f.label)}</label>
+      <input type="text" value="${esc(S.customIds[f.id]||f.jira)}" onchange="S.customIds['${f.id}']=this.value.trim()" />
+    </div>`).join('');
+}
+
+function toggleField(id) {
+  const idx = S.enabled.indexOf(id);
+  if (idx>-1) S.enabled.splice(idx,1); else S.enabled.push(id);
+  const el = document.getElementById('fc-'+id);
+  if (el) el.classList.toggle('on', S.enabled.includes(id));
+}
+function saveFields()  { persist(); const m=document.getElementById('fields-msg'); m.textContent='✓ Saved.'; setTimeout(()=>m.textContent='',3000); }
+function resetFields() { S.enabled=[...DEFAULT_ENABLED]; S.customIds={}; persist(); renderFields(); }
+
+async function discoverFields() {
+  const msg = document.getElementById('discover-msg');
+  if (!S.creds.url) { msg.textContent = 'Save Jira credentials first.'; return; }
+  msg.textContent = 'Fetching fields from Jira…';
+  try {
+    const r = await jiraFetch(S.creds.url + '/rest/api/3/field', S.creds.email, S.creds.token);
+    if (!r.ok) { msg.textContent = 'Failed: HTTP ' + r.status; return; }
+    const fields = await r.json();
+    // Build name->id map (custom fields only), keyed by lowercase name
+    const nameMap = {};
+    fields.forEach(f => { if (f.custom) nameMap[f.name.toLowerCase()] = f.id; });
+
+    let matched = 0;
+    ALL_FIELDS.filter(f => f.custom).forEach(f => {
+      const label = f.label.toLowerCase();
+      // 1. Exact match
+      let hit = nameMap[label];
+      // 2. Partial match — label contains or is contained by a Jira field name
+      if (!hit) {
+        hit = Object.keys(nameMap).find(k => k.includes(label) || label.includes(k));
+        if (hit) hit = nameMap[hit];
+      }
+      if (hit && hit !== (S.customIds[f.id] || f.jira)) { S.customIds[f.id] = hit; matched++; }
+    });
+    persist();
+    renderFields();
+    msg.textContent = matched > 0 ? `✓ Matched ${matched} field${matched!==1?'s':''}. Review below and save.` : 'No new matches — use Field Inspector to map manually.';
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function inspectIssue() {
+  const key  = (document.getElementById('inspector-key')?.value || '').trim().toUpperCase();
+  const msg  = document.getElementById('inspector-msg');
+  const res  = document.getElementById('inspector-results');
+  if (!key) { msg.textContent = 'Enter a ticket key.'; return; }
+  if (!S.creds.url) { msg.textContent = 'Save Jira credentials first.'; return; }
+  msg.textContent = 'Fetching…';
+  res.innerHTML = '';
+  try {
+    const r = await jiraFetch(
+      S.creds.url + '/rest/api/3/issue/' + encodeURIComponent(key) + '?expand=names',
+      S.creds.email, S.creds.token
+    );
+    if (!r.ok) { msg.textContent = 'HTTP ' + r.status + ' — check the key.'; return; }
+    const data = await r.json();
+    const fields = data.fields || {};
+    const names  = data.names  || {}; // fieldId -> display name (from expand=names)
+
+    // Filter to non-null fields, sort: custom first
+    const entries = Object.entries(fields)
+      .filter(([,v]) => v !== null && v !== '' && !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0))
+      .sort((a, b) => {
+        const ac = a[0].startsWith('customfield') ? 0 : 1;
+        const bc = b[0].startsWith('customfield') ? 0 : 1;
+        return ac - bc || a[0].localeCompare(b[0]);
+      });
+
+    function fmtVal(v) {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+      if (Array.isArray(v)) return v.map(x => x?.displayName || x?.name || x?.value || JSON.stringify(x)).join(', ');
+      return v.displayName || v.name || v.value || v.key || JSON.stringify(v).slice(0, 80);
+    }
+
+    const customFields = ALL_FIELDS.filter(f => f.custom);
+
+    const rows = entries.map(([id, val]) => {
+      const jiraName = names[id] || '';
+      const displayVal = fmtVal(val);
+      // Check if any of our custom fields is already mapped to this id
+      const alreadyMapped = customFields.find(f => (S.customIds[f.id] || f.jira) === id);
+      // Build map buttons for custom fields not yet mapped to this id
+      const mapBtns = alreadyMapped
+        ? `<span class="inspector-mapped">✓ ${esc(alreadyMapped.label)}</span>`
+        : customFields.map(f =>
+            `<button class="btn btn-sm inspector-map-btn" onclick="mapFieldId('${f.id}','${id}')">${esc(f.label)}</button>`
+          ).join(' ');
+      return `<tr>
+        <td class="inspector-id">${esc(id)}</td>
+        <td style="color:var(--text2);white-space:nowrap">${esc(jiraName)}</td>
+        <td class="inspector-val" title="${esc(String(displayVal))}">${esc(String(displayVal).slice(0,120))}</td>
+        <td style="white-space:nowrap">${mapBtns}</td>
+      </tr>`;
+    }).join('');
+
+    res.innerHTML = `
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${entries.length} non-empty fields on ${esc(key)}</div>
+      <div style="overflow:auto;max-height:420px;border:0.5px solid var(--border);border-radius:var(--radius)">
+        <table class="inspector-table">
+          <thead><tr><th>Field ID</th><th>Jira Name</th><th>Value</th><th>Map to</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    msg.textContent = '';
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+  }
+}
+
+function mapFieldId(ourFieldId, jiraFieldId) {
+  S.customIds[ourFieldId] = jiraFieldId;
+  persist();
+  renderFields();
+  // Refresh inspector to show updated mapping
+  inspectIssue();
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+function renderAnalytics() {
+  Object.values(S.charts).forEach(c=>{try{c.destroy();}catch(e){}});
+  S.charts = {};
+
+  const body = document.getElementById('analytics-body');
+  const loaded = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err);
+
+  if (!loaded.length) {
+    body.innerHTML = `<div class="info-box">No data loaded yet. Visit each project page and click <strong>Refresh</strong>, then come back here.</div>`;
+    return;
+  }
+
+  const totalAll = loaded.reduce((a,p)=>a+(S.cache[p.key].issues||[]).length,0);
+
+  // Phase counts across all projects
+  const allPhaseCounts = {};
+  PHASES.forEach(p => { allPhaseCounts[p.label] = 0; });
+  loaded.forEach(proj => {
+    (S.cache[proj.key].issues||[]).forEach(i => {
+      const ph = getPhaseForStatus(i.fields?.status?.name||'');
+      if (ph) allPhaseCounts[ph.label]++;
+    });
+  });
+
+  const summaryCards = `
+    <div class="stat-card"><div class="sl">Projects</div><div class="sv">${loaded.length}</div></div>
+    <div class="stat-card"><div class="sl">Total issues</div><div class="sv">${totalAll}</div></div>
+    ${PHASES.map(p=>`<div class="stat-card"><div class="sl">${esc(p.label)}</div><div class="sv">${allPhaseCounts[p.label]}</div></div>`).join('')}`;
+
+  body.innerHTML = `
+    <div class="stat-strip" style="margin-bottom:28px">${summaryCards}</div>
+    <div class="section-h">Phase breakdown</div>
+    <div id="ch-pipeline"></div>
+    <div class="section-h">Developer progress</div>
+    <div id="ch-devprogress"></div>
+    <div class="section-h">Priority breakdown</div>
+    <div class="charts-grid" id="ch-priority"></div>
+    <div class="section-h">Issue type breakdown</div>
+    <div class="charts-grid" id="ch-type"></div>`;
+
+  const PALETTES = {
+    phase:    PHASES.map(p => p.color),
+    priority: ['#A32D2D','#c47a0f','#3B6D11','#533AB7','#888780'],
+    type:     ['#533AB7','#185FA5','#3B6D11','#A32D2D','#c47a0f','#0F6E56'],
+  };
+
+  function buildCharts(containerId, dataFn, palKey) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = loaded.map(p=>`
+      <div class="chart-card">
+        <h3><span style="width:9px;height:9px;border-radius:50%;background:${p.color};display:inline-block"></span>${esc(p.name)}</h3>
+        <div class="chart-sub">${(S.cache[p.key].issues||[]).length} issues</div>
+        <div style="position:relative;width:100%;height:175px">
+          <canvas id="c_${containerId}_${p.key}" role="img" aria-label="${esc(p.name)} ${palKey} chart"></canvas>
+        </div>
+        <div class="legend" id="leg_${containerId}_${p.key}"></div>
+      </div>`).join('');
+
+    loaded.forEach(p => {
+      const issues = S.cache[p.key].issues || [];
+      const { labels, counts } = dataFn(issues);
+      const palette = PALETTES[palKey];
+      const colors  = labels.map((_,i) => palette[i % palette.length] || '#888780');
+      const ctx     = document.getElementById(`c_${containerId}_${p.key}`);
+      if (!ctx) return;
+
+      const chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data:counts, backgroundColor:colors, borderWidth:2, borderColor:'#ffffff' }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display:false },
+            tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} (${Math.round(c.raw/(counts.reduce((a,b)=>a+b,0)||1)*100)}%)` } }
+          }
+        }
+      });
+      S.charts[containerId+'_'+p.key] = chart;
+
+      const total = counts.reduce((a,b)=>a+b,0)||1;
+      document.getElementById(`leg_${containerId}_${p.key}`).innerHTML =
+        labels.map((l,i)=>`<span><b style="background:${colors[i]}"></b>${esc(l)} ${counts[i]} (${Math.round(counts[i]/total*100)}%)</span>`).join('');
+    });
+  }
+
+  // ── Phase pipeline table ────────────────────────────────────────────────
+  (function buildPipeline() {
+    const rows = loaded.map(proj => {
+      const issues = S.cache[proj.key].issues || [];
+      const tot = issues.length || 1;
+      const pCounts = PHASES.map(p => issues.filter(i => p.re.test((i.fields?.status?.name||'').trim())).length);
+      const other   = issues.filter(i => !getPhaseForStatus(i.fields?.status?.name||'')).length;
+      const qaIdx     = PHASES.findIndex(p => p.label === 'QA');
+      const closedIdx = PHASES.findIndex(p => p.label === 'Closed');
+      const doneCount = (qaIdx >= 0 ? pCounts[qaIdx] : 0) + (closedIdx >= 0 ? pCounts[closedIdx] : 0);
+      const donePct   = Math.round(doneCount / tot * 100);
+
+      const barSegs = PHASES.map((p,i) => {
+        const w = Math.round(pCounts[i] / tot * 100);
+        return w > 0 ? `<div class="pipeline-bar-seg" style="flex:${pCounts[i]};background:${p.color}" title="${esc(p.label)}: ${pCounts[i]}"></div>` : '';
+      }).join('');
+      const otherSeg = other > 0 ? `<div class="pipeline-bar-seg" style="flex:${other};background:#888780" title="Other: ${other}"></div>` : '';
+
+      const phaseCells = PHASES.map((p,i) => {
+        const pct = Math.round(pCounts[i] / tot * 100);
+        const clickable = pCounts[i] > 0 ? `style="cursor:pointer;color:${p.color}" onclick="navToPhase('${proj.id}','${esc(p.label)}')" title="View ${esc(p.label)} in ${esc(proj.name)}"` : `style="color:${p.color}"`;
+        return `<td class="ph-count" ${clickable}>${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
+      }).join('');
+
+      return `<tr>
+        <td style="cursor:pointer" onclick="navToPhase('${proj.id}',null)"><div class="proj-name-cell"><span style="width:9px;height:9px;border-radius:50%;background:${proj.color};flex-shrink:0"></span>${esc(proj.name)}</div></td>
+        <td class="pipeline-bar-cell"><div class="pipeline-bar">${barSegs}${otherSeg}</div></td>
+        ${phaseCells}
+        <td style="text-align:right" title="${doneCount} of ${issues.length} issues are in QA or Closed"><span class="progress-pill">${donePct}%&nbsp;complete</span></td>
+      </tr>`;
+    }).join('');
+
+    const headerCells = PHASES.map(p =>
+      `<th class="ph-col" style="color:${p.color}">${esc(p.label)}</th>`
+    ).join('');
+
+    const legendItems = PHASES.map(p =>
+      `<div class="phase-legend-item"><div class="phase-legend-dot" style="background:${p.color}"></div>${esc(p.label)}</div>`
+    ).join('');
+
+    document.getElementById('ch-pipeline').innerHTML =
+      `<div class="phase-legend-row">${legendItems}<div class="phase-legend-item"><div class="phase-legend-dot" style="background:#888780"></div>Other</div></div>
+       <table class="pipeline-table">
+         <thead><tr><th>Project</th><th>Distribution</th>${headerCells}<th></th></tr></thead>
+         <tbody>${rows}</tbody>
+       </table>`;
+  })();
+
+  // ── Developer progress table ───────────────────────────────────────
+  (function buildDevAnalytics() {
+    // Gather all issues
+    const allIssues = [];
+    loaded.forEach(proj => {
+      (S.cache[proj.key].issues || []).forEach(i => allIssues.push({ proj, issue: i }));
+    });
+
+    // Group by dev
+    const devMap = {};
+    allIssues.forEach(({ proj, issue }) => {
+      const dev = getDev(issue);
+      if (!devMap[dev]) devMap[dev] = [];
+      devMap[dev].push({ proj, issue });
+    });
+
+    const devEntries = Object.entries(devMap).sort((a, b) => b[1].length - a[1].length);
+
+    const headerCells = PHASES.map(p =>
+      `<th class="ph-col" style="color:${p.color}">${esc(p.label)}</th>`
+    ).join('');
+
+    const rows = devEntries.map(([dev, items]) => {
+      const tot = items.length || 1;
+      const pCounts = PHASES.map(p =>
+        items.filter(({issue}) => p.re.test((issue.fields?.status?.name||'').trim())).length
+      );
+      const other = items.filter(({issue}) => !getPhaseForStatus(issue.fields?.status?.name||'')).length;
+      const qaIdx2     = PHASES.findIndex(p => p.label === 'QA');
+      const closedIdx2 = PHASES.findIndex(p => p.label === 'Closed');
+      const qaCount    = (qaIdx2 >= 0 ? pCounts[qaIdx2] : 0) + (closedIdx2 >= 0 ? pCounts[closedIdx2] : 0);
+      const donePct    = Math.round(qaCount / tot * 100);
+
+      // project dots
+      const projSet = {};
+      items.forEach(({proj}) => { projSet[proj.key] = proj; });
+      const projDots = Object.values(projSet).map(p =>
+        `<span title="${esc(p.name)}" style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block"></span>`
+      ).join('');
+
+      const barSegs = PHASES.map((p, i) =>
+        pCounts[i] > 0 ? `<div class="pipeline-bar-seg" style="flex:${pCounts[i]};background:${p.color}" title="${esc(p.label)}: ${pCounts[i]}"></div>` : ''
+      ).join('') + (other > 0 ? `<div class="pipeline-bar-seg" style="flex:${other};background:#888780" title="Other: ${other}"></div>` : '');
+
+      const phaseCells = PHASES.map((p, i) => {
+        const pct = Math.round(pCounts[i] / tot * 100);
+        return `<td class="ph-count" style="color:${p.color}">${pCounts[i]}<span class="ph-pct">${pct}%</span></td>`;
+      }).join('');
+
+      return `<tr style="cursor:pointer" onclick="navToDev('${esc(dev)}')" title="Open ${esc(dev)} in Team View">
+        <td style="white-space:nowrap;font-weight:500;font-size:13px">${esc(dev)}</td>
+        <td><div style="display:flex;align-items:center;gap:3px">${projDots}</div></td>
+        <td class="ph-count" style="color:var(--text)">${items.length}</td>
+        <td class="pipeline-bar-cell"><div class="pipeline-bar">${barSegs}</div></td>
+        ${phaseCells}
+        <td style="text-align:right" title="${qaCount} of ${items.length} issues are in QA or Closed"><span class="progress-pill">${donePct}%&nbsp;complete</span></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('ch-devprogress').innerHTML =
+      `<table class="pipeline-table">
+        <thead><tr>
+          <th>Developer</th><th>Projects</th><th class="ph-col">Total</th><th>Distribution</th>
+          ${headerCells}<th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  })();
+
+  buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority');
+  buildCharts('ch-type',     is=>{const m={};is.forEach(i=>{const s=i.fields?.issuetype?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'type');
+}
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const proj = getAllProjects().find(p=>p.id===S.page);
+  if (!proj||!S.cache[proj.key]||S.cache[proj.key].err) { alert('Load a project page first.'); return; }
+  const issues = S.cache[proj.key].issues || [];
+  const vf = S.enabled.map(id=>ALL_FIELDS.find(f=>f.id===id)).filter(Boolean);
+  const csv = [
+    vf.map(f=>'"'+f.label.replace(/"/g,'""')+'"').join(','),
+    ...issues.map(i => vf.map(f=>'"'+String(getCellValue(i,f)).replace(/"/g,'""')+'"').join(','))
+  ].join('\r\n');
+  const a = Object.assign(document.createElement('a'),{
+    href: URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'})),
+    download: proj.key+'_N2026.R2_'+new Date().toISOString().slice(0,10)+'.csv'
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ── Developer name helper ────────────────────────────────────────────────────
+// Reads strictly from "Assignee: Development" (cf_dev), respecting any
+// custom field ID override set in Field Configuration.
+function getDev(issue) {
+  const fields = issue.fields || {};
+  const cfDev = ALL_FIELDS.find(f => f.id === 'cf_dev');
+  const fieldId = (cfDev ? jiraId(cfDev) : null) || 'customfield_10206';
+  const val = fields[fieldId];
+  if (val == null || val === '') return 'Unassigned';
+  if (Array.isArray(val)) {
+    const names = val.map(v => v.displayName || v.name || String(v)).filter(Boolean);
+    return names.length ? names.join(', ') : 'Unassigned';
+  }
+  if (typeof val === 'string') return val || 'Unassigned';
+  return val.displayName || val.name || 'Unassigned';
+}
+
+// \u2500\u2500 Multi-select helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+const MS_LABELS = { project: 'Projects', phase: 'Phases', dev: 'Developers' };
+
+function updateMsBtn(id) {
+  const count = S._msState?.[id]?.size || 0;
+  const btn   = document.getElementById('ms-btn-' + id);
+  const label = document.getElementById('ms-label-' + id);
+  if (!btn || !label) return;
+  btn.classList.toggle('has-selection', count > 0);
+  label.innerHTML = count > 0
+    ? `${MS_LABELS[id]} <span class="ms-badge">${count}</span>`
+    : MS_LABELS[id];
+}
+
+function toggleMs(id) {
+  const drop = document.getElementById('ms-drop-' + id);
+  if (!drop) return;
+  const isOpen = drop.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  if (!isOpen) drop.classList.add('open');
+}
+
+function filterMsOptions(id, query) {
+  const q = query.toLowerCase();
+  const container = document.getElementById('ms-opts-' + id);
+  if (!container) return;
+  container.querySelectorAll('.ms-option').forEach(el => {
+    el.style.display = el.dataset.value.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function selectAllMs(id) {
+  const container = document.getElementById('ms-opts-' + id);
+  if (!container) return;
+  container.querySelectorAll('.ms-option:not([style*="display: none"]) input').forEach(cb => {
+    cb.checked = true;
+    S._msState[id].add(cb.closest('.ms-option').dataset.value);
+  });
+  updateMsBtn(id);
+  renderTeam();
+}
+
+function clearMs(id) {
+  const container = document.getElementById('ms-opts-' + id);
+  if (!container) return;
+  container.querySelectorAll('.ms-option input').forEach(cb => { cb.checked = false; });
+  S._msState[id].clear();
+  updateMsBtn(id);
+  renderTeam();
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ms-wrap')) {
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+function renderTeam() {
+  const body = document.getElementById('team-body');
+  if (!body) return;
+
+  // Gather all issues from cache
+  const allIssues = [];
+  getAllProjects().forEach(proj => {
+    const data = S.cache[proj.key];
+    if (!data || data.err) return;
+    (data.issues || []).forEach(i => allIssues.push({ proj, issue: i }));
+  });
+
+  if (!allIssues.length) {
+    body.innerHTML = '<div class="team-empty">No data loaded yet. Click <strong>Refresh All</strong> first.</div>';
+    return;
+  }
+
+  // Helper to extract developer name
+  // ── Multi-select state (keyed by filter id)
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+
+  // Populate multi-select dropdowns
+  function populateMs(id, values) {
+    const container = document.getElementById('ms-opts-' + id);
+    if (!container) return;
+    const existing = new Set([...container.querySelectorAll('.ms-option')].map(el => el.dataset.value));
+    values.forEach(v => {
+      if (!v || existing.has(v)) return;
+      const label = document.createElement('label');
+      label.className = 'ms-option';
+      label.dataset.value = v;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = S._msState[id].has(v);
+      cb.onchange = () => { if (cb.checked) S._msState[id].add(v); else S._msState[id].delete(v); updateMsBtn(id); renderTeam(); };
+      const span = document.createElement('span');
+      span.className = 'ms-option-label';
+      span.title = v;
+      span.textContent = v;
+      label.appendChild(cb);
+      label.appendChild(span);
+      container.appendChild(label);
+    });
+  }
+
+  const allDevs = [...new Set(allIssues.map(({issue}) => getDev(issue)).filter(Boolean))].sort();
+  const allPhaseLabels = [...PHASES.map(p => p.label), 'Other'];
+  const loadedProjNames = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err).map(p => p.name);
+  populateMs('project', loadedProjNames);
+  populateMs('phase',   allPhaseLabels);
+  populateMs('dev',     allDevs);
+  ['project','phase','dev'].forEach(updateMsBtn);
+
+  // Remove dev entries no longer in data
+  const devSet = new Set(allDevs);
+  S._msState.dev.forEach(v => { if (!devSet.has(v)) S._msState.dev.delete(v); });
+
+  // Read filters
+  const fProjs  = S._msState.project;
+  const fPhases = S._msState.phase;
+  const fDevs   = S._msState.dev;
+  const fSearch = (document.getElementById('team-search')?.value || '').toLowerCase();
+
+  // Filter
+  let filtered = allIssues.filter(({proj, issue}) => {
+    if (fProjs.size  && !fProjs.has(proj.name)) return false;
+    const status = issue.fields?.status?.name || '';
+    const phase  = getPhaseForStatus(status);
+    if (fPhases.size) {
+      const phLabel = phase ? phase.label : 'Other';
+      if (!fPhases.has(phLabel)) return false;
+    }
+    if (fDevs.size && !fDevs.has(getDev(issue))) return false;
+    if (fSearch) {
+      const key = (issue.key || '').toLowerCase();
+      const sum = (issue.fields?.summary || '').toLowerCase();
+      if (!key.includes(fSearch) && !sum.includes(fSearch)) return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    body.innerHTML = '<div class="team-empty">No tickets match the current filters.</div>';
+    return;
+  }
+
+  // Sort state
+  if (!S._teamSort) S._teamSort = { col: 'dev', dir: 1 };
+  const ts = S._teamSort;
+
+  function sortVal({proj, issue}) {
+    if (ts.col === 'dev')     return getDev(issue).toLowerCase();
+    if (ts.col === 'key')     return issue.key || '';
+    if (ts.col === 'summary') return (issue.fields?.summary || '').toLowerCase();
+    if (ts.col === 'status')  return (issue.fields?.status?.name || '').toLowerCase();
+    if (ts.col === 'phase') { const ph = getPhaseForStatus(issue.fields?.status?.name || ''); return ph ? ph.label.toLowerCase() : 'zzz'; }
+    if (ts.col === 'project') return proj.name.toLowerCase();
+    return '';
+  }
+  filtered.sort((a, b) => { const r = sortVal(a) < sortVal(b) ? -1 : sortVal(a) > sortVal(b) ? 1 : 0; return r * ts.dir; });
+
+  // Group by developer
+  const devMap = {};
+  filtered.forEach(item => {
+    const dev = getDev(item.issue);
+    if (!devMap[dev]) devMap[dev] = [];
+    devMap[dev].push(item);
+  });
+
+  function thSort(col, label) {
+    const active = ts.col === col;
+    const icon = active ? (ts.dir === 1 ? '▲' : '▼') : '▲';
+    return `<th class="${active ? 'sorted' : ''}" onclick="teamSort('${col}')">${label} <span class="sort-icon">${icon}</span></th>`;
+  }
+
+  const blocks = Object.entries(devMap).map(([dev, items]) => {
+    const rows = items.map(({proj, issue}) => {
+      const status = issue.fields?.status?.name || '';
+      const phase  = getPhaseForStatus(status);
+      const phColor = phase ? phase.color : '#888780';
+      const phLabel = phase ? phase.label : 'Other';
+      const link = S.creds.url ? S.creds.url + '/browse/' + (issue.key || '') : '#';
+      const priority = issue.fields?.priority?.name || '';
+      return `<tr onclick="window.open('${esc(link)}','_blank')">
+        <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(issue.key || '')}</a></td>
+        <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(issue.fields?.summary || '')}">${esc(issue.fields?.summary || '')}</td>
+        <td><span style="display:inline-flex;align-items:center;gap:5px"><span class="team-proj-dot" style="background:${proj.color}"></span>${esc(proj.name)}</span></td>
+        <td><span class="log-badge-to" style="background:${phColor}20;color:${phColor}">${esc(phLabel)}</span></td>
+        <td><span class="log-badge-from">${esc(status)}</span></td>
+        <td style="color:var(--text3);font-size:12px">${esc(priority)}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="team-dev-block">
+      <div class="team-dev-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ${esc(dev)}
+        <span class="team-dev-count">${items.length} ticket${items.length !== 1 ? 's' : ''}</span>
+      </div>
+      <table class="team-table">
+        <thead><tr>
+          ${thSort('key','Key')}
+          ${thSort('summary','Summary')}
+          ${thSort('project','Project')}
+          ${thSort('phase','Phase')}
+          ${thSort('status','Status')}
+          ${thSort('priority','Priority')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:12px">${filtered.length} ticket${filtered.length!==1?'s':''} across ${Object.keys(devMap).length} developer${Object.keys(devMap).length!==1?'s':''}</div>${blocks}`;
+}
+
+function navToDev(devName) {
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+  S._msState.project.clear();
+  S._msState.phase.clear();
+  S._msState.dev.clear();
+  S._msState.dev.add(devName);
+  nav('team');
+}
+
+function teamSort(col) {
+  if (!S._teamSort) S._teamSort = { col: 'dev', dir: 1 };
+  if (S._teamSort.col === col) S._teamSort.dir *= -1;
+  else { S._teamSort.col = col; S._teamSort.dir = 1; }
+  renderTeam();
+}
+
+function updateLogBadge() {
+  const total = (S.log || []).reduce((a, e) =>
+    a + Object.values(e.projects).reduce((b, p) => b + p.changes.length, 0), 0);
+  const badge = document.getElementById('log-badge');
+  if (!badge) return;
+  if (total > 0) { badge.textContent = total; badge.style.display = ''; }
+  else { badge.style.display = 'none'; }
+}
+
+function clearLog() {
+  S.log = [];
+  persist();
+  updateLogBadge();
+  renderLog();
+}
+
+function renderLog() {
+  const body = document.getElementById('log-body');
+  if (!body) return;
+  if (!S.log || !S.log.length) {
+    body.innerHTML = '<div class="log-empty">No refresh history yet. Click <strong>Refresh All</strong> to start tracking changes.</div>';
+    return;
+  }
+
+  body.innerHTML = S.log.map(entry => {
+    const dt = new Date(entry.ts);
+    const timeStr = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const totalChanges = Object.values(entry.projects).reduce((a,p) => a + p.changes.length, 0);
+
+    // Flatten all changes into table rows, grouped by project
+    const allRows = [];
+    Object.entries(entry.projects).forEach(([key, p]) => {
+      if (p.changes.length) {
+        p.changes.forEach(c => {
+          const toPhase = getPhaseForStatus(c.to);
+          const toColor = toPhase ? toPhase.color : '#888780';
+          const link = S.creds.url ? S.creds.url + '/browse/' + c.key : '#';
+          allRows.push(`<tr>
+            <td><div class="log-proj-cell"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></span>${esc(p.name)}</div></td>
+            <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(c.key)}</a></td>
+            <td class="log-summary-cell" title="${esc(c.summary)}">${esc(c.summary)}</td>
+            <td><span class="log-badge-from">${esc(c.from)}</span></td>
+            <td style="color:var(--text3);text-align:center">&rarr;</td>
+            <td><span class="log-badge-to" style="background:${toColor}20;color:${toColor}">${esc(c.to)}</span></td>
+          </tr>`);
+        });
+      }
+    });
+
+    const tableBody = allRows.length
+      ? allRows.join('')
+      : `<tr class="no-changes"><td colspan="6">No status changes detected in this refresh</td></tr>`;
+
+    return `<div class="log-refresh-block">
+      <div class="log-refresh-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.56"/></svg>
+        Refresh
+        ${totalChanges ? `<span style="background:var(--blue-bg);color:var(--blue);font-size:11px;padding:1px 8px;border-radius:10px;font-weight:700">${totalChanges} change${totalChanges!==1?'s':''}</span>` : '<span style="font-size:11px;color:var(--text3);font-weight:400">no changes</span>'}
+        <span class="log-refresh-time">${timeStr}</span>
+      </div>
+      <table class="log-table">
+        <thead><tr>
+          <th>Project</th><th>Key</th><th>Summary</th><th>From</th><th></th><th>To</th>
+        </tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Dynamic project UI ────────────────────────────────────────────────────────
+function rebuildDynamicUI() {
+  const sidebar  = document.getElementById('sidebar');
+  const content  = document.getElementById('content');
+  const secLabels = sidebar.querySelectorAll('.sec-label');
+  const projectLabel = secLabels[0] || null;
+  const projectSectionEnd = secLabels[1] || null; // "Insights" label
+
+  // Hide/show built-in nav items according to settings.
+  PROJECTS.forEach(p => {
+    const navEl = document.getElementById('nav-' + p.id);
+    if (navEl) navEl.style.display = isProjectVisible(p) ? '' : 'none';
+  });
+
+  // Remove old custom project nav items
+  sidebar.querySelectorAll('.custom-proj-nav').forEach(el => el.remove());
+
+  // Remove old custom project pages
+  document.querySelectorAll('.custom-proj-page').forEach(el => el.remove());
+
+  const custom = (S.customProjects || []).filter(isProjectVisible);
+  custom.forEach(proj => {
+    // Sidebar nav button
+    const btn = document.createElement('button');
+    btn.className = 'nav-item custom-proj-nav';
+    btn.id = 'nav-' + proj.id;
+    btn.onclick = () => nav(proj.id);
+    btn.innerHTML = `<span class="proj-dot" style="background:${esc(proj.color)}"></span>${esc(proj.name)}`;
+    if (projectSectionEnd) sidebar.insertBefore(btn, projectSectionEnd);
+    else if (projectLabel) projectLabel.insertAdjacentElement('afterend', btn);
+    else sidebar.appendChild(btn);
+
+    // Page div
+    const page = document.createElement('div');
+    page.className = 'page custom-proj-page';
+    page.id = 'page-' + proj.id;
+    content.appendChild(page);
+  });
+
+  // If user is on a project page that became hidden/disabled, redirect.
+  const currentProjectVisible = getAllProjects().some(p => p.id === S.page);
+  if (!currentProjectVisible && /^p\d+$|^cp_/.test(S.page || '')) {
+    nav(getDefaultProjectPage());
+  }
+}
+
+// ── Projects config page ──────────────────────────────────────────────────────
+const PROJECT_COLORS = ['#185FA5','#3B6D11','#c47a0f','#533AB7','#993556','#0F6E56','#7C3085','#0F7070','#A33B1A','#1A6B4A'];
+
+function setProjectEnabled(key, enabled) {
+  getProjectSettings(key).enabled = !!enabled;
+  persist();
+  rebuildDynamicUI();
+  renderProjectsConfig();
+}
+
+function removeBuiltinProject(key) {
+  if (!confirm('Remove this built-in project from dashboard views? You can restore it later.')) return;
+  const st = getProjectSettings(key);
+  st.removed = true;
+  st.enabled = false;
+  delete S.cache[key];
+  persist();
+  rebuildDynamicUI();
+  renderProjectsConfig();
+}
+
+function restoreBuiltinProject(key) {
+  const st = getProjectSettings(key);
+  st.removed = false;
+  st.enabled = true;
+  persist();
+  rebuildDynamicUI();
+  renderProjectsConfig();
+}
+
+function openProjectJqlModal(key) {
+  const proj = [...PROJECTS, ...(S.customProjects || [])].find(p => p.key === key);
+  if (!proj) return;
+  _projectModalMode = 'jql-only';
+  _editingProjIdx = null;
+  _editingProjKey = key;
+  document.getElementById('proj-modal-title').textContent = 'Edit JQL — ' + proj.name;
+  document.getElementById('pmod-name').value  = proj.name;
+  document.getElementById('pmod-key').value   = proj.key;
+  document.getElementById('pmod-color').value = proj.color;
+  document.getElementById('pmod-jql').value   = getProjectJql(proj);
+  document.getElementById('pmod-msg').textContent = '';
+  document.getElementById('pmod-name').disabled = true;
+  document.getElementById('pmod-key').disabled = true;
+  document.getElementById('pmod-color').disabled = true;
+  document.getElementById('proj-modal-overlay').style.display = 'flex';
+}
+
+function renderProjectsConfig() {
+  // Built-in list
+  const builtinEl = document.getElementById('pc-builtin');
+  builtinEl.innerHTML = PROJECTS.map(p => {
+    const st = getProjectSettings(p.key);
+    const removed = !!st.removed;
+    const enabled = isProjectEnabled(p.key) && !removed;
+    const effectiveJql = getProjectJql(p);
+    const hasOverride = effectiveJql !== p.jql;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px;${removed ? 'opacity:.65' : ''}">
+      <span style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
+      <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
+      <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
+      ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} ${removed ? 'disabled' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
+      <button class="btn btn-sm" onclick="openProjectJqlModal('${p.key}')">Edit JQL</button>
+      ${removed
+        ? `<button class="btn btn-sm" onclick="restoreBuiltinProject('${p.key}')">Restore</button>`
+        : `<button class="btn btn-sm" style="color:var(--red)" onclick="removeBuiltinProject('${p.key}')">Remove</button>`}
+      <span style="font-size:11px;color:var(--text3);flex-shrink:0">built-in</span>
+    </div>`;
+  }).join('');
+
+  // Custom list
+  const customEl  = document.getElementById('pc-custom');
+  const emptyEl   = document.getElementById('pc-empty');
+  const custom    = S.customProjects || [];
+  if (custom.length === 0) {
+    emptyEl.style.display = '';
+    customEl.querySelectorAll('.custom-proj-row').forEach(el => el.remove());
+    return;
+  }
+  emptyEl.style.display = 'none';
+  customEl.querySelectorAll('.custom-proj-row').forEach(el => el.remove());
+  custom.forEach((p, idx) => {
+    const enabled = isProjectEnabled(p.key);
+    const effectiveJql = getProjectJql(p);
+    const hasOverride = effectiveJql !== p.jql;
+    const row = document.createElement('div');
+    row.className = 'custom-proj-row';
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:13px';
+    row.innerHTML = `
+      <span style="width:10px;height:10px;border-radius:50%;background:${esc(p.color)};flex-shrink:0"></span>
+      <span style="font-weight:500;flex:0 0 180px">${esc(p.name)}</span>
+      <span style="font-size:11px;color:var(--text3);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${esc(effectiveJql)}">${esc(effectiveJql)}</span>
+      ${hasOverride ? '<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:2px 8px;border-radius:999px;flex-shrink:0">JQL edited</span>' : ''}
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);flex-shrink:0"><input type="checkbox" ${enabled ? 'checked' : ''} onchange="setProjectEnabled('${p.key}', this.checked)">Enabled</label>
+      <button class="btn btn-sm" onclick="openProjectJqlModal('${p.key}')">Edit JQL</button>
+      <button class="btn btn-sm" onclick="openProjectModal(${idx})">Edit</button>
+      <button class="btn btn-sm" style="color:var(--red)" onclick="deleteCustomProject(${idx})">Delete</button>`;
+    customEl.appendChild(row);
+  });
+}
+
+let _editingProjIdx = null;
+let _editingProjKey = '';
+let _projectModalMode = 'full'; // full | jql-only
+
+function openProjectModal(editIdx) {
+  _projectModalMode = 'full';
+  _editingProjKey = '';
+  _editingProjIdx = editIdx != null ? editIdx : null;
+  const isEdit = _editingProjIdx != null;
+  const proj   = isEdit ? S.customProjects[_editingProjIdx] : null;
+  document.getElementById('proj-modal-title').textContent = isEdit ? 'Edit project' : 'Add project';
+  document.getElementById('pmod-name').value  = proj ? proj.name  : '';
+  document.getElementById('pmod-key').value   = proj ? proj.key   : '';
+  document.getElementById('pmod-color').value = proj ? proj.color : PROJECT_COLORS[((S.customProjects||[]).length) % PROJECT_COLORS.length];
+  document.getElementById('pmod-jql').value   = proj ? proj.jql   : '';
+  document.getElementById('pmod-msg').textContent = '';
+  document.getElementById('pmod-name').disabled = false;
+  document.getElementById('pmod-key').disabled = isEdit; // key is immutable after creation
+  document.getElementById('pmod-color').disabled = false;
+  const overlay = document.getElementById('proj-modal-overlay');
+  overlay.style.display = 'flex';
+}
+
+function closeProjectModal() {
+  _editingProjIdx = null;
+  _editingProjKey = '';
+  _projectModalMode = 'full';
+  document.getElementById('proj-modal-overlay').style.display = 'none';
+}
+
+function saveProjectModal() {
+  const name  = document.getElementById('pmod-name').value.trim();
+  const key   = document.getElementById('pmod-key').value.trim().toUpperCase();
+  const color = document.getElementById('pmod-color').value;
+  const jql   = document.getElementById('pmod-jql').value.trim();
+  const msgEl = document.getElementById('pmod-msg');
+
+  if (!jql)  { msgEl.textContent = 'JQL query is required.'; return; }
+
+  if (_projectModalMode === 'jql-only') {
+    if (!_editingProjKey) { msgEl.textContent = 'Unknown project key.'; return; }
+    getProjectSettings(_editingProjKey).jql = jql;
+    delete S.cache[_editingProjKey];
+    persist();
+    rebuildDynamicUI();
+    renderProjectsConfig();
+    closeProjectModal();
+    return;
+  }
+
+  if (!name) { msgEl.textContent = 'Project name is required.'; return; }
+  if (!key || !/^[A-Z0-9_]{1,12}$/.test(key)) { msgEl.textContent = 'Key must be 1–12 uppercase letters/numbers.'; return; }
+
+  if (!S.customProjects) S.customProjects = [];
+  const isEdit = _editingProjIdx != null;
+
+  // Duplicate key check (only on add)
+  if (!isEdit) {
+    const allKeys = [...PROJECTS, ...S.customProjects].map(p => p.key);
+    if (allKeys.includes(key)) { msgEl.textContent = `Key "${key}" is already in use.`; return; }
+  }
+
+  const id = 'cp_' + key.toLowerCase();
+  const proj = { id, name, key, color, jql };
+
+  if (isEdit) {
+    S.customProjects[_editingProjIdx] = proj;
+  } else {
+    S.customProjects.push(proj);
+  }
+  // Full project edit owns base JQL for custom projects; remove any stale override.
+  if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key].jql;
+  persist();
+  rebuildDynamicUI();
+  renderProjectsConfig();
+  closeProjectModal();
+}
+
+function deleteCustomProject(idx) {
+  if (!confirm(`Delete project "${S.customProjects[idx].name}"? Its cached data will also be cleared.`)) return;
+  const key = S.customProjects[idx].key;
+  delete S.cache[key];
+  S.customProjects.splice(idx, 1);
+  if (S.projectSettings && S.projectSettings[key]) delete S.projectSettings[key];
+  persist();
+  rebuildDynamicUI();
+  renderProjectsConfig();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+hydrate();
+if (!S.log) S.log = [];
+if (!S.customProjects) S.customProjects = [];
+if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+// Sets are not JSON-serialisable, so always re-create as empty on load
+S._msState = { project: new Set(), phase: new Set(), dev: new Set() };
+applyTheme(S.theme || getPreferredTheme(), false);
+rebuildDynamicUI();
+renderFields();
+updateLogBadge();
+nav(S.creds.url ? getDefaultProjectPage() : 'setup');
+</script>
+</body>
+</html>
