@@ -312,7 +312,7 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
 
     <button class="nav-item" onclick="nav('log')" id="nav-log">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Change Log
+      Daily Progress
       <span id="log-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px"></span>
     </button>
     <button class="nav-item" onclick="nav('team')" id="nav-team">
@@ -553,15 +553,15 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
         </div>
       </div>
 
-      <!-- Change Log -->
+      <!-- Daily Progress -->
       <div class="page" id="page-log">
         <div style="max-width:860px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
             <div>
-              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Change Log</h2>
-              <p style="font-size:13px;color:var(--text2)">Status changes detected on each Refresh All.</p>
+              <h2 style="font-size:18px;font-weight:600;margin-bottom:3px">Daily Progress</h2>
+              <p style="font-size:13px;color:var(--text2)">Daily ticket movements with drill-down by project and assignee.</p>
             </div>
-            <button class="btn btn-sm" onclick="clearLog()">Clear log</button>
+            <button class="btn btn-sm" onclick="clearLog()">Clear history</button>
           </div>
           <div id="log-body"></div>
         </div>
@@ -751,7 +751,7 @@ function nav(id) {
     document.getElementById('topbar-title').textContent = 'Team View';
     renderTeam();
   } else if (id === 'log') {
-    document.getElementById('topbar-title').textContent = 'Change Log';
+    document.getElementById('topbar-title').textContent = 'Daily Progress';
     renderLog();
   } else if (id === 'projects-config') {
     document.getElementById('topbar-title').textContent = 'Projects';
@@ -859,7 +859,14 @@ async function refreshAll() {
           const old = oldCache[proj.key][i.key];
           const newStatus = i.fields?.status?.name || '';
           if (old && old.status !== newStatus) {
-            changes.push({ key: i.key, summary: i.fields?.summary || '', from: old.status, to: newStatus });
+            changes.push({
+              key: i.key,
+              summary: i.fields?.summary || '',
+              from: old.status,
+              to: newStatus,
+              assignee: i.fields?.assignee?.displayName || 'Unassigned',
+              developer: getDev(i)
+            });
           }
         });
       }
@@ -888,6 +895,7 @@ async function refreshAll() {
   const proj = getAllProjects().find(p => p.id === S.page);
   if (proj) renderProject(proj);
   else if (S.page === 'analytics') renderAnalytics();
+  else if (S.page === 'log') renderLog();
 }
 
 // ── Credentials ──────────────────────────────────────────────────────────────
@@ -2009,8 +2017,12 @@ function teamSort(col) {
 }
 
 function updateLogBadge() {
-  const total = (S.log || []).reduce((a, e) =>
-    a + Object.values(e.projects).reduce((b, p) => b + p.changes.length, 0), 0);
+  const today = new Date().toLocaleDateString();
+  const total = (S.log || []).reduce((a, e) => {
+    const day = new Date(e.ts).toLocaleDateString();
+    if (day !== today) return a;
+    return a + Object.values(e.projects).reduce((b, p) => b + p.changes.length, 0);
+  }, 0);
   const badge = document.getElementById('log-badge');
   if (!badge) return;
   if (total > 0) { badge.textContent = total; badge.style.display = ''; }
@@ -2028,54 +2040,129 @@ function renderLog() {
   const body = document.getElementById('log-body');
   if (!body) return;
   if (!S.log || !S.log.length) {
-    body.innerHTML = '<div class="log-empty">No refresh history yet. Click <strong>Refresh All</strong> to start tracking changes.</div>';
+    body.innerHTML = '<div class="log-empty">No daily progress yet. Click <strong>Refresh All</strong> regularly to build daily movement history.</div>';
     return;
   }
 
-  body.innerHTML = S.log.map(entry => {
-    const dt = new Date(entry.ts);
-    const timeStr = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    const totalChanges = Object.values(entry.projects).reduce((a,p) => a + p.changes.length, 0);
-
-    // Flatten all changes into table rows, grouped by project
-    const allRows = [];
-    Object.entries(entry.projects).forEach(([key, p]) => {
-      if (p.changes.length) {
-        p.changes.forEach(c => {
-          const toPhase = getPhaseForStatus(c.to);
-          const toColor = toPhase ? toPhase.color : '#888780';
-          const link = S.creds.url ? S.creds.url + '/browse/' + c.key : '#';
-          allRows.push(`<tr>
-            <td><div class="log-proj-cell"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></span>${esc(p.name)}</div></td>
-            <td><a class="log-key-link" href="${esc(link)}" target="_blank" onclick="event.stopPropagation()">${esc(c.key)}</a></td>
-            <td class="log-summary-cell" title="${esc(c.summary)}">${esc(c.summary)}</td>
-            <td><span class="log-badge-from">${esc(c.from)}</span></td>
-            <td style="color:var(--text3);text-align:center">&rarr;</td>
-            <td><span class="log-badge-to" style="background:${toColor}20;color:${toColor}">${esc(c.to)}</span></td>
-          </tr>`);
+  const byDay = {};
+  (S.log || []).forEach(entry => {
+    const day = new Date(entry.ts).toLocaleDateString();
+    if (!byDay[day]) byDay[day] = { refreshes: 0, changes: [] };
+    byDay[day].refreshes += 1;
+    Object.entries(entry.projects || {}).forEach(([projKey, p]) => {
+      (p.changes || []).forEach(c => {
+        byDay[day].changes.push({
+          ts: entry.ts,
+          projectKey: projKey,
+          projectName: p.name || projKey,
+          projectColor: p.color || '#888780',
+          key: c.key,
+          summary: c.summary || '',
+          from: c.from || '',
+          to: c.to || '',
+          assignee: c.assignee || c.developer || 'Unassigned',
+          developer: c.developer || 'Unassigned'
         });
-      }
+      });
     });
+  });
 
-    const tableBody = allRows.length
-      ? allRows.join('')
-      : `<tr class="no-changes"><td colspan="6">No status changes detected in this refresh</td></tr>`;
+  const days = Object.keys(byDay).sort((a, b) => new Date(b) - new Date(a));
+  const selectedDay = S._logFilterDay && byDay[S._logFilterDay] ? S._logFilterDay : days[0];
+  S._logFilterDay = selectedDay;
 
-    return `<div class="log-refresh-block">
-      <div class="log-refresh-header">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.56"/></svg>
-        Refresh
-        ${totalChanges ? `<span style="background:var(--blue-bg);color:var(--blue);font-size:11px;padding:1px 8px;border-radius:10px;font-weight:700">${totalChanges} change${totalChanges!==1?'s':''}</span>` : '<span style="font-size:11px;color:var(--text3);font-weight:400">no changes</span>'}
-        <span class="log-refresh-time">${timeStr}</span>
-      </div>
-      <table class="log-table">
-        <thead><tr>
-          <th>Project</th><th>Key</th><th>Summary</th><th>From</th><th></th><th>To</th>
-        </tr></thead>
-        <tbody>${tableBody}</tbody>
-      </table>
+  const dayData = byDay[selectedDay] || { refreshes: 0, changes: [] };
+  const projectOptions = [...new Set(dayData.changes.map(c => c.projectName))].sort();
+  const selectedProject = S._logFilterProject && projectOptions.includes(S._logFilterProject) ? S._logFilterProject : 'all';
+  S._logFilterProject = selectedProject;
+
+  let filtered = dayData.changes;
+  if (selectedProject !== 'all') filtered = filtered.filter(c => c.projectName === selectedProject);
+
+  const assigneeOptions = [...new Set(filtered.map(c => c.assignee))].sort();
+  const selectedAssignee = S._logFilterAssignee && assigneeOptions.includes(S._logFilterAssignee) ? S._logFilterAssignee : 'all';
+  S._logFilterAssignee = selectedAssignee;
+  if (selectedAssignee !== 'all') filtered = filtered.filter(c => c.assignee === selectedAssignee);
+
+  const dayStats = `
+    <div class="stat-strip" style="margin-bottom:14px">
+      <div class="stat-card"><div class="sl">Day</div><div class="sv" style="font-size:16px">${esc(selectedDay || '-')}</div></div>
+      <div class="stat-card"><div class="sl">Refreshes</div><div class="sv">${dayData.refreshes}</div></div>
+      <div class="stat-card"><div class="sl">Tickets moved</div><div class="sv">${filtered.length}</div></div>
+      <div class="stat-card"><div class="sl">Projects</div><div class="sv">${new Set(filtered.map(c => c.projectName)).size}</div></div>
+      <div class="stat-card"><div class="sl">Assignees</div><div class="sv">${new Set(filtered.map(c => c.assignee)).size}</div></div>
     </div>`;
-  }).join('');
+
+  const filterRow = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <label style="font-size:12px;color:var(--text3)">Day
+        <select class="section-control" style="margin-left:6px" onchange="S._logFilterDay=this.value;S._logFilterProject='all';S._logFilterAssignee='all';renderLog()">
+          ${days.map(d => `<option value="${esc(d)}" ${d===selectedDay?'selected':''}>${esc(d)} (${byDay[d].changes.length} moved)</option>`).join('')}
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text3)">Project
+        <select class="section-control" style="margin-left:6px" onchange="S._logFilterProject=this.value;S._logFilterAssignee='all';renderLog()">
+          <option value="all" ${selectedProject==='all'?'selected':''}>All projects</option>
+          ${projectOptions.map(p => `<option value="${esc(p)}" ${p===selectedProject?'selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text3)">Assignee
+        <select class="section-control" style="margin-left:6px" onchange="S._logFilterAssignee=this.value;renderLog()">
+          <option value="all" ${selectedAssignee==='all'?'selected':''}>All assignees</option>
+          ${assigneeOptions.map(a => `<option value="${esc(a)}" ${a===selectedAssignee?'selected':''}>${esc(a)}</option>`).join('')}
+        </select>
+      </label>
+    </div>`;
+
+  const assigneeSummaryMap = {};
+  filtered.forEach(c => { assigneeSummaryMap[c.assignee] = (assigneeSummaryMap[c.assignee] || 0) + 1; });
+  const assigneeSummaryRows = Object.entries(assigneeSummaryMap)
+    .sort((a,b) => b[1]-a[1])
+    .map(([name, count]) => `<tr><td>${esc(name)}</td><td style="text-align:right">${count}</td></tr>`)
+    .join('') || '<tr><td colspan="2" style="color:var(--text3)">No movements for selected filters.</td></tr>';
+
+  const ticketRows = filtered
+    .sort((a,b) => b.ts - a.ts)
+    .map(c => {
+      const toPhase = getPhaseForStatus(c.to);
+      const toColor = toPhase ? toPhase.color : '#888780';
+      const link = S.creds.url ? S.creds.url + '/browse/' + c.key : '#';
+      return `<tr>
+        <td style="white-space:nowrap">${new Date(c.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+        <td><div class="log-proj-cell"><span style="width:8px;height:8px;border-radius:50%;background:${c.projectColor};flex-shrink:0"></span>${esc(c.projectName)}</div></td>
+        <td>${esc(c.assignee)}</td>
+        <td><a class="log-key-link" href="${esc(link)}" target="_blank">${esc(c.key)}</a></td>
+        <td class="log-summary-cell" title="${esc(c.summary)}">${esc(c.summary)}</td>
+        <td><span class="log-badge-from">${esc(c.from)}</span></td>
+        <td style="color:var(--text3);text-align:center">&rarr;</td>
+        <td><span class="log-badge-to" style="background:${toColor}20;color:${toColor}">${esc(c.to)}</span></td>
+      </tr>`;
+    }).join('') || '<tr class="no-changes"><td colspan="8">No ticket movements match the selected filters.</td></tr>';
+
+  body.innerHTML = `
+    ${dayStats}
+    ${filterRow}
+    <div style="display:grid;grid-template-columns:minmax(220px,260px) 1fr;gap:12px;align-items:start">
+      <div class="log-refresh-block" style="margin:0">
+        <div class="log-refresh-header">Assignee summary</div>
+        <table class="log-table">
+          <thead><tr><th>Assignee</th><th style="text-align:right">Moved</th></tr></thead>
+          <tbody>${assigneeSummaryRows}</tbody>
+        </table>
+      </div>
+      <div class="log-refresh-block" style="margin:0">
+        <div class="log-refresh-header">
+          Ticket movements
+          <span class="log-refresh-time">${esc(selectedDay || '')}</span>
+        </div>
+        <table class="log-table">
+          <thead><tr>
+            <th>Time</th><th>Project</th><th>Assignee</th><th>Key</th><th>Summary</th><th>From</th><th></th><th>To</th>
+          </tr></thead>
+          <tbody>${ticketRows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
