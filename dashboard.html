@@ -176,6 +176,18 @@ table.issues tr:hover td { background: var(--bg2); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .legend span { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 4px; }
 .legend b { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+.effort-grid { display:grid; grid-template-columns:repeat(2,minmax(300px,1fr)); gap:12px; margin-bottom:24px; }
+@media(max-width:1100px){ .effort-grid{grid-template-columns:1fr;} }
+.effort-card { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); padding:14px; }
+.effort-card h3 { font-size:13px; font-weight:600; margin-bottom:10px; }
+.effort-table { width:100%; border-collapse:collapse; }
+.effort-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:8px 10px; border-bottom:0.5px solid var(--border); text-align:left; white-space:nowrap; }
+.effort-table td { padding:8px 10px; border-bottom:0.5px solid var(--border); font-size:12px; }
+.effort-table tr:last-child td { border-bottom:none; }
+.effort-track { width:100%; height:8px; border-radius:999px; background:var(--bg3); overflow:hidden; min-width:110px; }
+.effort-fill { height:100%; background:var(--blue); border-radius:999px; }
+.effort-gap-pos { color:var(--green); font-weight:600; }
+.effort-gap-neg { color:var(--red); font-weight:600; }
 /* ── Phase pipeline ── */
 .pipeline-table { width:100%; border-collapse:collapse; margin-bottom:28px; background:var(--bg); border:0.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
 .pipeline-table th { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:10px 14px; border-bottom:0.5px solid var(--border); text-align:left; white-space:nowrap; }
@@ -1340,6 +1352,24 @@ function setAnalyticsView(section, value) {
   renderAnalytics();
 }
 
+function toDayNumber(val) {
+  if (val == null || val === '') return 0;
+  if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+  if (Array.isArray(val)) return toDayNumber(val[0]);
+  const raw = String(val).trim().replace(',', '.');
+  const m = raw.match(/-?\d+(?:\.\d+)?/);
+  if (!m) return 0;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getIssueDays(issue, fieldAlias, fallbackFieldId) {
+  const fields = issue.fields || {};
+  const f = ALL_FIELDS.find(x => x.id === fieldAlias);
+  const fieldId = (f ? jiraId(f) : null) || fallbackFieldId;
+  return toDayNumber(fields[fieldId]);
+}
+
 function resetAnalyticsViews() {
   S.analyticsViews = { phase:'table', dev:'table', priority:'doughnut', type:'doughnut' };
   persist();
@@ -1401,6 +1431,8 @@ function renderAnalytics() {
       </select>
     </div>
     <div id="ch-devprogress"></div>
+    <div class="section-h">Effort variance (Actual vs Estimate)</div>
+    <div id="ch-effort"></div>
     <div class="section-h-row">
       <div class="section-h">Priority breakdown</div>
       <select class="section-control" onchange="setAnalyticsView('priority',this.value)">
@@ -1744,6 +1776,110 @@ function renderAnalytics() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
+  })();
+
+  // ── Effort variance (Actual vs Estimate) ─────────────────────────────────
+  (function buildEffortAnalytics() {
+    const allRows = [];
+    loaded.forEach(proj => {
+      (S.cache[proj.key].issues || []).forEach(issue => {
+        const estimate = getIssueDays(issue, 'cf_devest', 'customfield_10204');
+        const actual = getIssueDays(issue, 'cf_devact', 'customfield_10203');
+        if (estimate <= 0 && actual <= 0) return;
+        allRows.push({
+          project: proj,
+          dev: getDev(issue),
+          estimate,
+          actual,
+        });
+      });
+    });
+
+    if (!allRows.length) {
+      document.getElementById('ch-effort').innerHTML =
+        '<div class="info-box">No estimate/actual day values found. Map <strong>Dev Estimate (Days)</strong> and <strong>Dev Actual (Days)</strong> in Field Configuration.</div>';
+      return;
+    }
+
+    const totalEstimate = allRows.reduce((a, r) => a + r.estimate, 0);
+    const totalActual = allRows.reduce((a, r) => a + r.actual, 0);
+    const totalGap = totalEstimate - totalActual;
+    const totalProgressPct = totalEstimate > 0 ? (totalActual / totalEstimate) * 100 : 0;
+
+    const byProject = {};
+    const byDev = {};
+    allRows.forEach(r => {
+      const pk = r.project.name;
+      if (!byProject[pk]) byProject[pk] = { estimate: 0, actual: 0, color: r.project.color };
+      byProject[pk].estimate += r.estimate;
+      byProject[pk].actual += r.actual;
+
+      const dk = r.dev;
+      if (!byDev[dk]) byDev[dk] = { estimate: 0, actual: 0 };
+      byDev[dk].estimate += r.estimate;
+      byDev[dk].actual += r.actual;
+    });
+
+    const projectRows = Object.entries(byProject)
+      .sort((a, b) => b[1].estimate - a[1].estimate)
+      .map(([name, v]) => {
+        const gap = v.estimate - v.actual;
+        const pct = v.estimate > 0 ? (v.actual / v.estimate) * 100 : 0;
+        const bar = Math.min(100, Math.max(0, pct));
+        return `<tr>
+          <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${v.color}"></span>${esc(name)}</span></td>
+          <td style="text-align:right">${v.estimate.toFixed(1)}</td>
+          <td style="text-align:right">${v.actual.toFixed(1)}</td>
+          <td style="text-align:right" class="${gap >= 0 ? 'effort-gap-pos' : 'effort-gap-neg'}">${gap >= 0 ? '+' : ''}${gap.toFixed(1)}</td>
+          <td>
+            <div class="effort-track"><div class="effort-fill" style="width:${bar}%"></div></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px">${pct.toFixed(0)}%</div>
+          </td>
+        </tr>`;
+      }).join('');
+
+    const devRows = Object.entries(byDev)
+      .sort((a, b) => b[1].estimate - a[1].estimate)
+      .slice(0, 20)
+      .map(([name, v]) => {
+        const gap = v.estimate - v.actual;
+        const pct = v.estimate > 0 ? (v.actual / v.estimate) * 100 : 0;
+        const bar = Math.min(100, Math.max(0, pct));
+        return `<tr>
+          <td>${esc(name)}</td>
+          <td style="text-align:right">${v.estimate.toFixed(1)}</td>
+          <td style="text-align:right">${v.actual.toFixed(1)}</td>
+          <td style="text-align:right" class="${gap >= 0 ? 'effort-gap-pos' : 'effort-gap-neg'}">${gap >= 0 ? '+' : ''}${gap.toFixed(1)}</td>
+          <td>
+            <div class="effort-track"><div class="effort-fill" style="width:${bar}%"></div></div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px">${pct.toFixed(0)}%</div>
+          </td>
+        </tr>`;
+      }).join('');
+
+    document.getElementById('ch-effort').innerHTML = `
+      <div class="stat-strip" style="margin-bottom:14px">
+        <div class="stat-card"><div class="sl">Estimated days</div><div class="sv">${totalEstimate.toFixed(1)}</div></div>
+        <div class="stat-card"><div class="sl">Actual days</div><div class="sv">${totalActual.toFixed(1)}</div></div>
+        <div class="stat-card"><div class="sl">Gap (Est - Act)</div><div class="sv" style="color:${totalGap>=0?'var(--green)':'var(--red)'}">${totalGap>=0?'+':''}${totalGap.toFixed(1)}</div></div>
+        <div class="stat-card"><div class="sl">Actual vs Estimate</div><div class="sv">${totalProgressPct.toFixed(0)}%</div></div>
+      </div>
+      <div class="effort-grid">
+        <div class="effort-card">
+          <h3>Project progress by days</h3>
+          <table class="effort-table">
+            <thead><tr><th>Project</th><th style="text-align:right">Estimate</th><th style="text-align:right">Actual</th><th style="text-align:right">Gap</th><th>Progress</th></tr></thead>
+            <tbody>${projectRows}</tbody>
+          </table>
+        </div>
+        <div class="effort-card">
+          <h3>Developer progress by days</h3>
+          <table class="effort-table">
+            <thead><tr><th>Developer</th><th style="text-align:right">Estimate</th><th style="text-align:right">Actual</th><th style="text-align:right">Gap</th><th>Progress</th></tr></thead>
+            <tbody>${devRows}</tbody>
+          </table>
+        </div>
+      </div>`;
   })();
 
   buildCharts('ch-priority', is=>{const m={};is.forEach(i=>{const s=i.fields?.priority?.name||'Unknown';m[s]=(m[s]||0)+1;});return{labels:Object.keys(m),counts:Object.values(m)};}, 'priority', S.analyticsViews.priority);
