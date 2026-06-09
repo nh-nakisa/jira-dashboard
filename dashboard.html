@@ -577,6 +577,28 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   <div class="ms-footer"><button onclick="selectAllMs('dev')">Select all</button><button onclick="clearMs('dev')">Clear</button></div>
                 </div>
               </div>
+              <div class="ms-wrap" id="ms-wrap-product">
+                <div class="ms-btn" id="ms-btn-product" onclick="toggleMs('product')">
+                  <span id="ms-label-product">Product Assignees</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-product">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('product',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-product"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('product')">Select all</button><button onclick="clearMs('product')">Clear</button></div>
+                </div>
+              </div>
+              <div class="ms-wrap" id="ms-wrap-assignee">
+                <div class="ms-btn" id="ms-btn-assignee" onclick="toggleMs('assignee')">
+                  <span id="ms-label-assignee">Assignees</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="ms-dropdown" id="ms-drop-assignee">
+                  <div class="ms-dropdown-search"><input type="text" placeholder="Search…" oninput="filterMsOptions('assignee',this.value)"></div>
+                  <div class="ms-options" id="ms-opts-assignee"></div>
+                  <div class="ms-footer"><button onclick="selectAllMs('assignee')">Select all</button><button onclick="clearMs('assignee')">Clear</button></div>
+                </div>
+              </div>
               <div class="ms-wrap" id="ms-wrap-scope">
                 <div class="ms-btn" id="ms-btn-scope" onclick="toggleMs('scope')">
                   <span id="ms-label-scope">Scope Commitment</span>
@@ -618,6 +640,23 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   </div>
                 </div>
               </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="phase-developer-filter-btn" onclick="togglePhaseDeveloperFilter()">
+                  <span id="phase-developer-filter-label">All Developers</span>
+                  <span class="ms-badge" id="phase-developer-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="phase-developer-filter-dropdown">
+                  <div class="ms-dropdown-search">
+                    <input type="text" id="phase-developer-search" placeholder="Search developers..." oninput="filterPhaseDeveloperOptions()">
+                  </div>
+                  <div class="ms-options" id="phase-developer-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearPhaseDeveloperFilter()">Clear</button>
+                    <button onclick="selectAllPhaseDevelopers()">Select All</button>
+                  </div>
+                </div>
+              </div>
               <select id="phase-period" class="section-control" onchange="renderPhaseTimeline()">
                 <option value="day">By Day</option>
                 <option value="week" selected>By Week</option>
@@ -656,6 +695,23 @@ code { font-family: monospace; font-size: 12px; background: var(--bg3); padding:
                   <div class="ms-footer">
                     <button onclick="clearLogProjectFilter()">Clear</button>
                     <button onclick="selectAllLogProjects()">Select All</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ms-wrap">
+                <button class="ms-btn" id="log-developer-filter-btn" onclick="toggleLogDeveloperFilter()">
+                  <span id="log-developer-filter-label">All Developers</span>
+                  <span class="ms-badge" id="log-developer-filter-count" style="display:none">0</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="ms-dropdown" id="log-developer-filter-dropdown">
+                  <div class="ms-dropdown-search">
+                    <input type="text" id="log-developer-search" placeholder="Search developers..." oninput="filterLogDeveloperOptions()">
+                  </div>
+                  <div class="ms-options" id="log-developer-filter-options"></div>
+                  <div class="ms-footer">
+                    <button onclick="clearLogDeveloperFilter()">Clear</button>
+                    <button onclick="selectAllLogDevelopers()">Select All</button>
                   </div>
                 </div>
               </div>
@@ -2341,7 +2397,7 @@ function getDev(issue) {
 }
 
 // \u2500\u2500 Multi-select helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-const MS_LABELS = { project: 'Projects', phase: 'Phases', dev: 'Developers', scope: 'Scope Commitment' };
+const MS_LABELS = { project: 'Projects', phase: 'Phases', dev: 'Developers', product: 'Product Assignees', assignee: 'Assignees', scope: 'Scope Commitment' };
 
 function updateMsBtn(id) {
   const count = S._msState?.[id]?.size || 0;
@@ -2418,7 +2474,7 @@ function renderTeam() {
 
   // Helper to extract developer name
   // ── Multi-select state (keyed by filter id)
-  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 
   // Helper to get Scope Commitment value
   function getScopeCommitment(issue) {
@@ -2462,15 +2518,37 @@ function renderTeam() {
   const loadedProjNames = getAllProjects().filter(p => S.cache[p.key] && !S.cache[p.key].err).map(p => p.name);
   const allScopeCommitments = [...new Set(allIssues.map(({issue}) => getScopeCommitment(issue)).filter(Boolean))].sort();
   
+  // Get product assignees
+  const allProductAssignees = [...new Set(allIssues.map(({issue}) => {
+    const productField = ALL_FIELDS.find(f => f.id === 'cf_product');
+    if (!productField) return '';
+    const fieldId = jiraId(productField);
+    const val = issue.fields?.[fieldId];
+    return extractUserName(val);
+  }).filter(Boolean))].sort();
+  
+  // Get general assignees
+  const allAssignees = [...new Set(allIssues.map(({issue}) => issue.fields?.assignee?.displayName || '').filter(Boolean))].sort();
+  
   populateMs('project', loadedProjNames);
   populateMs('phase',   allPhaseLabels);
   populateMs('dev',     allDevs);
+  populateMs('product', allProductAssignees);
+  populateMs('assignee', allAssignees);
   populateMs('scope',   allScopeCommitments);
-  ['project','phase','dev','scope'].forEach(updateMsBtn);
+  ['project','phase','dev','product','assignee','scope'].forEach(updateMsBtn);
 
   // Remove dev entries no longer in data
   const devSet = new Set(allDevs);
   S._msState.dev.forEach(v => { if (!devSet.has(v)) S._msState.dev.delete(v); });
+  
+  // Remove product entries no longer in data
+  const productSet = new Set(allProductAssignees);
+  S._msState.product.forEach(v => { if (!productSet.has(v)) S._msState.product.delete(v); });
+  
+  // Remove assignee entries no longer in data
+  const assigneeSet = new Set(allAssignees);
+  S._msState.assignee.forEach(v => { if (!assigneeSet.has(v)) S._msState.assignee.delete(v); });
   
   // Remove scope entries no longer in data
   const scopeSet = new Set(allScopeCommitments);
@@ -2480,6 +2558,8 @@ function renderTeam() {
   const fProjs  = S._msState.project;
   const fPhases = S._msState.phase;
   const fDevs   = S._msState.dev;
+  const fProducts = S._msState.product;
+  const fAssignees = S._msState.assignee;
   const fScopes = S._msState.scope;
   const fSearch = (document.getElementById('team-search')?.value || '').toLowerCase();
 
@@ -2493,6 +2573,22 @@ function renderTeam() {
       if (!fPhases.has(phLabel)) return false;
     }
     if (fDevs.size && !fDevs.has(getDev(issue))) return false;
+    
+    // Product assignee filter
+    if (fProducts.size) {
+      const productField = ALL_FIELDS.find(f => f.id === 'cf_product');
+      const fieldId = productField ? jiraId(productField) : '';
+      const val = issue.fields?.[fieldId];
+      const productAssignee = extractUserName(val);
+      if (!fProducts.has(productAssignee)) return false;
+    }
+    
+    // General assignee filter
+    if (fAssignees.size) {
+      const assignee = issue.fields?.assignee?.displayName || '';
+      if (!fAssignees.has(assignee)) return false;
+    }
+    
     if (fScopes.size && !fScopes.has(getScopeCommitment(issue))) return false;
     if (fSearch) {
       const key = (issue.key || '').toLowerCase();
@@ -2590,10 +2686,12 @@ function renderTeam() {
 }
 
 function navToDev(devName, phaseLabel) {
-  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
+  if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
   S._msState.project.clear();
   S._msState.phase.clear();
   S._msState.dev.clear();
+  S._msState.product.clear();
+  S._msState.assignee.clear();
   S._msState.dev.add(devName);
   if (phaseLabel) S._msState.phase.add(phaseLabel);
   nav('team');
@@ -2652,12 +2750,47 @@ function renderPhaseTimeline() {
     : loaded;
 
   const allIssues = [];
+  const allDevelopers = new Set();
   filteredProjects.forEach(proj => {
     const issues = S.cache[proj.key].issues || [];
     issues.forEach(issue => {
-      allIssues.push({ proj, issue });
+      // Get all relevant developer fields
+      const devAssignee = getDev(issue); // Development assignee
+      const assignee = issue.fields?.assignee?.displayName || 'Unassigned';
+      
+      // Get product assignee
+      const productField = ALL_FIELDS.find(f => f.id === 'cf_product');
+      const productFieldId = productField ? jiraId(productField) : '';
+      const productVal = issue.fields?.[productFieldId];
+      const productAssignee = extractUserName(productVal) || 'Unassigned';
+      
+      // Add all developers to the set
+      allDevelopers.add(devAssignee);
+      allDevelopers.add(assignee);
+      allDevelopers.add(productAssignee);
+      
+      allIssues.push({ 
+        proj, 
+        issue, 
+        developer: devAssignee,
+        assignee: assignee,
+        productAssignee: productAssignee
+      });
     });
   });
+
+  // Build developer filter options
+  buildPhaseDeveloperFilterOptions(allDevelopers);
+
+  // Apply developer filter
+  const selectedDevelopers = getSelectedPhaseDevelopers();
+  const filteredIssues = selectedDevelopers.size > 0
+    ? allIssues.filter(item => 
+        selectedDevelopers.has(item.developer) || 
+        selectedDevelopers.has(item.assignee) ||
+        selectedDevelopers.has(item.productAssignee)
+      )
+    : allIssues;
 
   // Get current date and range start date
   const now = new Date();
@@ -2665,7 +2798,7 @@ function renderPhaseTimeline() {
 
   // Parse changelog to find when tickets moved to "done" statuses (QA or Closed phases)
   const completionData = [];
-  allIssues.forEach(({ proj, issue }) => {
+  filteredIssues.forEach(({ proj, issue, developer, assignee, productAssignee }) => {
     const changelog = issue.changelog?.histories || [];
     
     // Check current status - is it in QA or Closed?
@@ -2703,7 +2836,9 @@ function renderPhaseTimeline() {
         key: issue.key,
         summary: issue.fields?.summary || '',
         status: currentStatus,
-        phase: currentPhase
+        phase: currentPhase,
+        developer: developer,
+        assignee: assignee
       });
     }
   });
@@ -2795,6 +2930,7 @@ function renderPhaseTimeline() {
                 <th style="width:120px">Key</th>
                 <th>Summary</th>
                 <th style="width:140px">Project</th>
+                <th style="width:140px">Developer</th>
                 <th style="width:100px">Status</th>
                 <th style="width:140px">Completed</th>
               </tr>
@@ -2806,6 +2942,7 @@ function renderPhaseTimeline() {
                   <td><span class="key-link">${esc(t.key)}</span></td>
                   <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.summary)}</td>
                   <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${t.proj.color}"></span>${esc(t.proj.name)}</span></td>
+                  <td style="font-size:11px;color:var(--text2)">${esc(t.developer)}</td>
                   <td>${esc(t.status)}</td>
                   <td style="font-size:11px;color:var(--text3)">${formatDateTime(t.completionDate)}</td>
                 </tr>`;
@@ -3018,7 +3155,7 @@ function togglePeriodDetails(periodKey) {
       row.classList.add('hidden');
     }
   });
-  
+
   if (icon) {
     if (isHidden) {
       icon.style.transform = 'rotate(90deg)';
@@ -3026,6 +3163,131 @@ function togglePeriodDetails(periodKey) {
       icon.style.transform = '';
     }
   }
+}
+
+// ── Phase Developer Filter Functions ──────────────────────────────────────
+
+function buildPhaseDeveloperFilterOptions(developers) {
+  const optionsEl = document.getElementById('phase-developer-filter-options');
+  if (!optionsEl) return;
+  
+  // Store currently selected developers
+  const currentSelection = getSelectedPhaseDevelopers();
+  
+  // Store developer list for filtering
+  const developerList = Array.from(developers).sort();
+  optionsEl.dataset.allDevelopers = JSON.stringify(developerList);
+  
+  // Render all developers with preserved selection
+  optionsEl.innerHTML = developerList.map(dev => {
+    const isChecked = currentSelection.has(dev);
+    return `
+    <label class="ms-option" data-developer="${esc(dev)}">
+      <input type="checkbox" value="${esc(dev)}" onchange="updatePhaseDeveloperFilter()" ${isChecked ? 'checked' : ''}>
+      <span class="ms-option-label">${esc(dev)}</span>
+    </label>
+  `;
+  }).join('');
+}
+
+function togglePhaseDeveloperFilter() {
+  const dropdown = document.getElementById('phase-developer-filter-dropdown');
+  dropdown.classList.toggle('open');
+  
+  // Clear search when opening
+  if (dropdown.classList.contains('open')) {
+    const searchInput = document.getElementById('phase-developer-search');
+    if (searchInput) searchInput.value = '';
+    filterPhaseDeveloperOptions();
+    
+    setTimeout(() => {
+      document.addEventListener('click', closePhaseDeveloperFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closePhaseDeveloperFilterOnOutside(e) {
+  const dropdown = document.getElementById('phase-developer-filter-dropdown');
+  const btn = document.getElementById('phase-developer-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closePhaseDeveloperFilterOnOutside);
+  }
+}
+
+function filterPhaseDeveloperOptions() {
+  const searchInput = document.getElementById('phase-developer-search');
+  const optionsEl = document.getElementById('phase-developer-filter-options');
+  if (!searchInput || !optionsEl) return;
+  
+  const searchTerm = searchInput.value.toLowerCase();
+  const options = optionsEl.querySelectorAll('.ms-option');
+  
+  options.forEach(option => {
+    const devName = option.dataset.developer || '';
+    if (devName.toLowerCase().includes(searchTerm)) {
+      option.style.display = '';
+    } else {
+      option.style.display = 'none';
+    }
+  });
+}
+
+function getSelectedPhaseDevelopers() {
+  const optionsEl = document.getElementById('phase-developer-filter-options');
+  if (!optionsEl) return new Set();
+  
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updatePhaseDeveloperFilter() {
+  const selected = getSelectedPhaseDevelopers();
+  const btn = document.getElementById('phase-developer-filter-btn');
+  const label = document.getElementById('phase-developer-filter-label');
+  const badge = document.getElementById('phase-developer-filter-count');
+  
+  if (selected.size === 0) {
+    label.textContent = 'All Developers';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Developers';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+  
+  renderPhaseTimeline();
+}
+
+function clearPhaseDeveloperFilter() {
+  const optionsEl = document.getElementById('phase-developer-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  updatePhaseDeveloperFilter();
+}
+
+function selectAllPhaseDevelopers() {
+  const optionsEl = document.getElementById('phase-developer-filter-options');
+  if (!optionsEl) return;
+  
+  // Only select visible options (respecting search filter)
+  optionsEl.querySelectorAll('.ms-option').forEach(option => {
+    if (option.style.display !== 'none') {
+      const cb = option.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+    }
+  });
+  
+  updatePhaseDeveloperFilter();
 }
 
 function formatPeriodLabel(key, period) {
@@ -3080,12 +3342,47 @@ function renderDailyProgress() {
     : loaded;
 
   const allIssues = [];
+  const allDevelopers = new Set();
   filteredProjects.forEach(proj => {
     const issues = S.cache[proj.key].issues || [];
     issues.forEach(issue => {
-      allIssues.push({ proj, issue });
+      // Get all relevant developer fields
+      const devAssignee = getDev(issue); // Development assignee
+      const assignee = issue.fields?.assignee?.displayName || 'Unassigned';
+      
+      // Get product assignee
+      const productField = ALL_FIELDS.find(f => f.id === 'cf_product');
+      const productFieldId = productField ? jiraId(productField) : '';
+      const productVal = issue.fields?.[productFieldId];
+      const productAssignee = extractUserName(productVal) || 'Unassigned';
+      
+      // Add all developers to the set
+      allDevelopers.add(devAssignee);
+      allDevelopers.add(assignee);
+      allDevelopers.add(productAssignee);
+      
+      allIssues.push({ 
+        proj, 
+        issue,
+        developer: devAssignee,
+        assignee: assignee,
+        productAssignee: productAssignee
+      });
     });
   });
+
+  // Build developer filter options
+  buildLogDeveloperFilterOptions(allDevelopers);
+
+  // Apply developer filter
+  const selectedDevelopers = getSelectedLogDevelopers();
+  const filteredIssues = selectedDevelopers.size > 0
+    ? allIssues.filter(item => 
+        selectedDevelopers.has(item.developer) || 
+        selectedDevelopers.has(item.assignee) ||
+        selectedDevelopers.has(item.productAssignee)
+      )
+    : allIssues;
 
   // Get current date and range start date
   const now = new Date();
@@ -3093,7 +3390,7 @@ function renderDailyProgress() {
 
   // Parse changelog to find all status changes in range
   const movementData = [];
-  allIssues.forEach(({ proj, issue }) => {
+  filteredIssues.forEach(({ proj, issue, developer, assignee, productAssignee }) => {
     const changelog = issue.changelog?.histories || [];
     
     changelog.forEach(history => {
@@ -3120,7 +3417,8 @@ function renderDailyProgress() {
             fromColor: fromPhase?.color || '#888780',
             toColor: toPhase?.color || '#888780',
             author: history.author?.displayName || 'Unknown',
-            assignee: issue.fields?.assignee?.displayName || 'Unassigned'
+            assignee: assignee,
+            developer: developer
           });
         });
       }
@@ -3228,7 +3526,7 @@ function renderDailyProgress() {
                 <th>Summary</th>
                 <th style="width:140px">Project</th>
                 <th style="width:120px">From → To</th>
-                <th style="width:120px">Assignee</th>
+                <th style="width:140px">Developer</th>
                 <th style="width:140px">Changed</th>
               </tr>
             </thead>
@@ -3244,7 +3542,7 @@ function renderDailyProgress() {
                     <span style="color:var(--text3)"> → </span>
                     <span style="color:${m.toColor}">${esc(m.to)}</span>
                   </td>
-                  <td style="font-size:11px">${esc(m.assignee)}</td>
+                  <td style="font-size:11px;color:var(--text2)">${esc(m.developer)}</td>
                   <td style="font-size:11px;color:var(--text3)">${formatDateTime(m.changeDate)}</td>
                 </tr>`;
               }).join('')}
@@ -3444,6 +3742,131 @@ function selectAllLogProjects() {
   });
   
   updateLogProjectFilter();
+}
+
+// ── Log Developer Filter Functions ──────────────────────────────────────
+
+function buildLogDeveloperFilterOptions(developers) {
+  const optionsEl = document.getElementById('log-developer-filter-options');
+  if (!optionsEl) return;
+  
+  // Store currently selected developers
+  const currentSelection = getSelectedLogDevelopers();
+  
+  // Store developer list for filtering
+  const developerList = Array.from(developers).sort();
+  optionsEl.dataset.allDevelopers = JSON.stringify(developerList);
+  
+  // Render all developers with preserved selection
+  optionsEl.innerHTML = developerList.map(dev => {
+    const isChecked = currentSelection.has(dev);
+    return `
+    <label class="ms-option" data-developer="${esc(dev)}">
+      <input type="checkbox" value="${esc(dev)}" onchange="updateLogDeveloperFilter()" ${isChecked ? 'checked' : ''}>
+      <span class="ms-option-label">${esc(dev)}</span>
+    </label>
+  `;
+  }).join('');
+}
+
+function toggleLogDeveloperFilter() {
+  const dropdown = document.getElementById('log-developer-filter-dropdown');
+  dropdown.classList.toggle('open');
+  
+  // Clear search when opening
+  if (dropdown.classList.contains('open')) {
+    const searchInput = document.getElementById('log-developer-search');
+    if (searchInput) searchInput.value = '';
+    filterLogDeveloperOptions();
+    
+    setTimeout(() => {
+      document.addEventListener('click', closeLogDeveloperFilterOnOutside);
+    }, 0);
+  }
+}
+
+function closeLogDeveloperFilterOnOutside(e) {
+  const dropdown = document.getElementById('log-developer-filter-dropdown');
+  const btn = document.getElementById('log-developer-filter-btn');
+  if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.classList.remove('open');
+    document.removeEventListener('click', closeLogDeveloperFilterOnOutside);
+  }
+}
+
+function filterLogDeveloperOptions() {
+  const searchInput = document.getElementById('log-developer-search');
+  const optionsEl = document.getElementById('log-developer-filter-options');
+  if (!searchInput || !optionsEl) return;
+  
+  const searchTerm = searchInput.value.toLowerCase();
+  const options = optionsEl.querySelectorAll('.ms-option');
+  
+  options.forEach(option => {
+    const devName = option.dataset.developer || '';
+    if (devName.toLowerCase().includes(searchTerm)) {
+      option.style.display = '';
+    } else {
+      option.style.display = 'none';
+    }
+  });
+}
+
+function getSelectedLogDevelopers() {
+  const optionsEl = document.getElementById('log-developer-filter-options');
+  if (!optionsEl) return new Set();
+  
+  const selected = new Set();
+  optionsEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    selected.add(cb.value);
+  });
+  return selected;
+}
+
+function updateLogDeveloperFilter() {
+  const selected = getSelectedLogDevelopers();
+  const btn = document.getElementById('log-developer-filter-btn');
+  const label = document.getElementById('log-developer-filter-label');
+  const badge = document.getElementById('log-developer-filter-count');
+  
+  if (selected.size === 0) {
+    label.textContent = 'All Developers';
+    badge.style.display = 'none';
+    btn.classList.remove('has-selection');
+  } else {
+    label.textContent = 'Developers';
+    badge.textContent = selected.size;
+    badge.style.display = '';
+    btn.classList.add('has-selection');
+  }
+  
+  renderDailyProgress();
+}
+
+function clearLogDeveloperFilter() {
+  const optionsEl = document.getElementById('log-developer-filter-options');
+  if (!optionsEl) return;
+  
+  optionsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  updateLogDeveloperFilter();
+}
+
+function selectAllLogDevelopers() {
+  const optionsEl = document.getElementById('log-developer-filter-options');
+  if (!optionsEl) return;
+  
+  // Only select visible options (respecting search filter)
+  optionsEl.querySelectorAll('.ms-option').forEach(option => {
+    if (option.style.display !== 'none') {
+      const cb = option.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+    }
+  });
+  
+  updateLogDeveloperFilter();
 }
 
 function renderLog() {
@@ -3845,9 +4268,9 @@ function deleteCustomProject(idx) {
 hydrate();
 if (!S.log) S.log = [];
 if (!S.customProjects) S.customProjects = [];
-if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
+if (!S._msState) S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 // Sets are not JSON-serialisable, so always re-create as empty on load
-S._msState = { project: new Set(), phase: new Set(), dev: new Set(), scope: new Set() };
+S._msState = { project: new Set(), phase: new Set(), dev: new Set(), product: new Set(), assignee: new Set(), scope: new Set() };
 applyTheme(S.theme || getPreferredTheme(), false);
 rebuildDynamicUI();
 renderFields();
