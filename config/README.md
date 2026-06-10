@@ -4,6 +4,37 @@ This directory contains JSON configuration files that are automatically created 
 
 ## Files
 
+### `projects.default.json`
+**Default/Built-in Projects Template** - Contains the standard project definitions that are loaded automatically. These projects are configured with base JQL queries (without fixVersion), and the system automatically injects the first release from `releases.json`.
+
+**Structure:**
+```json
+{
+  "defaultProjects": [
+    {
+      "id": "p0",
+      "name": "Lease Accounting 6.x",
+      "key": "NFS",
+      "color": "#185FA5",
+      "category": "Core Modules",
+      "jql": "project in (NFS) AND issuetype in (Enhancement, Epic) ORDER BY \"Scope Commitment At SC\"",
+      "excludeRelease": false
+    },
+    {
+      "id": "p6",
+      "name": "Open Bugs (All Projects)",
+      "key": "BUGS",
+      "jql": "project in (NFS, GL) AND issuetype = Bug",
+      "excludeRelease": true
+    }
+  ]
+}
+```
+
+**Key Properties:**
+- `excludeRelease: true` - Project won't have fixVersion auto-injected (for cross-release queries like bugs)
+- `excludeRelease: false` or omitted - First release from releases.json is auto-injected
+
 ### `releases.json`
 Stores release and milestone configuration data. This file is automatically created when you add your first release through the dashboard UI.
 

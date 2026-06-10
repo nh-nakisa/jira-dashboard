@@ -101,6 +101,22 @@ app.post('/config/projects', (req, res) => {
   }
 });
 
+// Get default projects
+app.get('/config/projects/default', (req, res) => {
+  const filePath = path.join(CONFIG_DIR, 'projects.default.json');
+  if (!fs.existsSync(filePath)) {
+    res.json({ defaultProjects: [] });
+    return;
+  }
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    console.error('[config read error]', err.message);
+    res.status(500).json({ error: 'Failed to read config: ' + err.message });
+  }
+});
+
 // ── Proxy route: /jira-api/<encoded-jira-base-url>/<rest-of-path> ────────────
 //
 // The dashboard calls:
